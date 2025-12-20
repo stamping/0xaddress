@@ -32,6 +32,8 @@ La extensión estará disponible en Chrome Web Store una vez aprobada.
 
 ## 📖 Uso para Desarrolladores (dApps)
 
+> **0xaddress dApp Playground** ( Prueba las funciones RPC de MetaMask y 0xAddress): [0xaddress.com/dev](https://0xaddress.com/dev)
+
 ### Detectar la wallet
 
 ```javascript
