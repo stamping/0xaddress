@@ -1,6 +1,6 @@
 # 🔐 0xAddress Wallet - Chrome Extension
 
-Wallet Web3 educativa que funciona como extensión de Chrome, similar a MetaMask.
+Wallet Web3 educativa que funciona como extensión de Chrome, similar a MetaMask. 
 
 ## ✨ Características
 
@@ -234,3 +234,8 @@ MIT - Creado por [Stamping.io](https://stamping.io)
 ---
 
 💡 **Tip**: Para desarrollo local de dApps, puedes usar `console.log(window.oxaddress)` para inspeccionar el provider.
+--
+## ✨ Info
+Sitio web: [0xaddress.com](https://0xaddress.com)
+dApp Playground ( Prueba las funciones RPC de MetaMask y 0xAddress): [0xaddress.com/dev](https://0xaddress.com/dev)
+Descargar código de extensión: [0xaddress.com/extension](https://0xaddress.com/e/ext.zip)
