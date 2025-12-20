@@ -19,11 +19,11 @@ Tu Wallet Web3 educativa en menos de 30 segundos,  funciona como extensión de C
 
 ### Opción 1: Modo desarrollador (recomendado para pruebas)
 
-1. Descomprime el archivo `[https://0xaddress.com/e/ext.zip](https://0xaddress.com/e/ext.zip)`
+1. Descomprime el archivo `ext.zip` desde [https://0xaddress.com/e/ext.zip](https://0xaddress.com/e/ext.zip) o descargala desde aquí.
 2. Abre Chrome y ve a `chrome://extensions/`
 3. Activa el **"Modo desarrollador"** (esquina superior derecha)
 4. Haz clic en **"Cargar descomprimida"**
-5. Selecciona la carpeta `0xaddress-extension`
+5. Selecciona la carpeta `ext`
 6. ¡Listo! El icono aparecerá en tu barra de extensiones
 
 ### Opción 2: Chrome Web Store (próximamente)
