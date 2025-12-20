@@ -1,0 +1,57 @@
+{
+  "manifest_version": 3,
+  "name": "0xAddress Wallet",
+  "version": "1.0.0",
+  "description": "Wallet Web3 educativa - Firma transacciones, gestiona tokens ERC20 y NFTs",
+  "author": "Stamping.io",
+  
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "0xAddress Wallet"
+  },
+  
+  "background": {
+    "service_worker": "js/background.js",
+    "type": "module"
+  },
+  
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["js/content-script.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ],
+  
+  "web_accessible_resources": [
+    {
+      "resources": ["js/inpage.js", "icons/*"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  
+  "permissions": [
+    "storage",
+    "activeTab",
+    "notifications",
+    "tabs"
+  ],
+  
+  "host_permissions": [
+    "<all_urls>"
+  ]
+}

@@ -1,0 +1,1572 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>0xAddress Wallet</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        /* Fuentes del sistema para extensión */
+        :root {
+            --font-main: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            --font-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+        }
+        body {
+            font-family: var(--font-main) !important;
+        }
+        .mono, code, .address, [class*="hash"] {
+            font-family: var(--font-mono) !important;
+        }
+        /* Tamaño fijo para popup de extensión */
+        html, body {
+            width: 380px;
+            min-height: 600px;
+            max-height: 600px;
+            overflow-x: hidden;
+        }
+        /* Estilos para modal de dApp */
+        .dapp-modal { max-width: 360px; }
+        .dapp-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+        .dapp-icon { width: 48px; height: 48px; border-radius: 12px; }
+        .dapp-info h3 { margin: 0; font-size: 16px; }
+        .dapp-origin { font-size: 12px; color: var(--text-secondary); margin: 4px 0 0; }
+        .dapp-request-type { text-align: center; padding: 20px; background: var(--bg-secondary); border-radius: 12px; margin-bottom: 16px; }
+        .request-icon { font-size: 48px; margin-bottom: 12px; }
+        .request-permissions { text-align: left; margin-top: 16px; }
+        .permission-item { padding: 8px; font-size: 14px; color: var(--text-secondary); }
+        .tx-preview { text-align: left; margin-top: 12px; }
+        .tx-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); }
+        .tx-row .address { font-family: monospace; font-size: 12px; }
+        .message-preview { background: var(--bg-primary); padding: 12px; border-radius: 8px; margin-top: 12px; font-size: 13px; max-height: 100px; overflow-y: auto; word-break: break-all; }
+        .dapp-actions { display: flex; gap: 12px; margin-top: 16px; }
+        .dapp-actions button { flex: 1; }
+    </style>
+</head>
+<body>
+    <!-- Pantalla de carga inicial -->
+    <div id="loader" class="loader">
+        <div class="loader-content">
+            <div class="loader-logo">
+                <div class="loader-icon">0x</div>
+            </div>
+            <div class="loader-brand">
+                <span class="brand-0x">0x</span><span class="brand-address">Address</span>
+            </div>
+            <div class="loader-bar">
+                <div class="loader-progress"></div>
+            </div>
+            <p class="loader-text" id="loaderText">Iniciando...</p>
+            <p class="loader-url">0xaddress.com</p>
+        </div>
+        <div class="loader-particles" id="loaderParticles"></div>
+    </div>
+
+    <!-- Modal de Setup Inicial -->
+    <div id="setupModal" class="modal">
+        <div class="modal-content setup-modal">
+            <div class="setup-header">
+                <div class="logo">
+                    <span class="logo-hex">0x</span><span class="logo-text">address</span>
+                </div>
+                <!-- Selector de idioma inicial -->
+                <div class="setup-lang-selector">
+                    <button class="lang-btn" data-click="setLanguage('es')" title="Español">🇪🇸</button>
+                    <button class="lang-btn" data-click="setLanguage('en')" title="English">🇺🇸</button>
+                </div>
+                <h2 data-i18n="setupTitle">Crear Wallet</h2>
+            </div>
+            
+            <!-- Banners de Información -->
+            <div class="promo-banners" id="promoBanners">
+                <div class="promo-banner banner-security active" id="banner0">
+                    <button class="banner-close" data-click="closeBanner(0)">×</button>
+                    <div class="banner-content">
+                        <span class="banner-icon">🔐</span>
+                        <div class="banner-text">
+                            <h4 data-i18n="bannerSecurityTitle">Máxima Seguridad</h4>
+                            <p data-i18n="bannerSecurityDesc">Cifrado AES-256 con PBKDF2 (300,000 iteraciones) para proteger la custodia de tus credenciales.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="promo-banner banner-seed" id="banner1">
+                    <button class="banner-close" data-click="closeBanner(1)">×</button>
+                    <div class="banner-content">
+                        <span class="banner-icon">🌱</span>
+                        <div class="banner-text">
+                            <h4 data-i18n="bannerSeedTitle">Estándar BIP-39</h4>
+                            <p data-i18n="bannerSeedDesc">Frase de recuperación de 12 palabras compatible con cualquier wallet del ecosistema.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="promo-banner banner-backup" id="banner2">
+                    <button class="banner-close" data-click="closeBanner(2)">×</button>
+                    <div class="banner-content">
+                        <span class="banner-icon">💾</span>
+                        <div class="banner-text">
+                            <h4 data-i18n="bannerBackupTitle">Backup Reforzado</h4>
+                            <p data-i18n="bannerBackupDesc">Exportación con 600,000 iteraciones PBKDF2 para máxima protección de tus respaldos.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="promo-banner banner-warning" id="banner3">
+                    <button class="banner-close" data-click="closeBanner(3)">×</button>
+                    <div class="banner-content">
+                        <span class="banner-icon">⚠️</span>
+                        <div class="banner-text">
+                            <h4 data-i18n="bannerWarningTitle">Guarda tu Frase</h4>
+                            <p data-i18n="bannerWarningDesc">Después de crear la wallet, anota tu frase de recuperación en un lugar seguro y offline.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="banner-indicators">
+                    <span class="banner-dot active" data-click="goToBanner(0)"></span>
+                    <span class="banner-dot" data-click="goToBanner(1)"></span>
+                    <span class="banner-dot" data-click="goToBanner(2)"></span>
+                    <span class="banner-dot" data-click="goToBanner(3)"></span>
+                </div>
+            </div>
+            
+            <!-- Tabs para crear/importar -->
+            <div class="setup-tabs">
+                <button class="setup-tab active" data-tab="create" data-click="switchSetupTab('create')">
+                    <span data-i18n="newWallet">Nueva</span>
+                </button>
+                <button class="setup-tab" data-tab="import" data-click="switchSetupTab('import')">
+                    <span data-i18n="import">Importar</span>
+                </button>
+            </div>
+            
+            <!-- Tab Crear Wallet -->
+            <div id="createTab" class="setup-tab-content active">
+                <div class="setup-section-header">
+                    <h3 data-i18n="createNewWallet">Crear Nueva Wallet</h3>
+                    <p data-i18n="createNewWalletDesc">Se generará una frase de 12 palabras protegida con tu contraseña</p>
+                </div>
+                
+                <form id="setupForm" class="setup-form">
+                    <div class="input-group">
+                        <label for="setupPassword" data-i18n="encryptionPassword">Contraseña de cifrado</label>
+                        <div class="password-input">
+                            <input type="password" id="setupPassword" data-i18n-placeholder="createSecurePassword" placeholder="Crea una contraseña segura" required minlength="8">
+                            <button type="button" class="toggle-password" data-click="togglePasswordVisibility('setupPassword')">👁️</button>
+                        </div>
+                        
+                        <!-- Checklist de requisitos de contraseña -->
+                        <div class="password-requirements" id="passwordRequirements">
+                            <div class="requirement" id="reqLength">
+                                <span class="req-icon">○</span>
+                                <span class="req-text" data-i18n="reqLength">Mínimo 8 caracteres</span>
+                            </div>
+                            <div class="requirement" id="reqUppercase">
+                                <span class="req-icon">○</span>
+                                <span class="req-text" data-i18n="reqUppercase">Una mayúscula (A-Z)</span>
+                            </div>
+                            <div class="requirement" id="reqLowercase">
+                                <span class="req-icon">○</span>
+                                <span class="req-text" data-i18n="reqLowercase">Una minúscula (a-z)</span>
+                            </div>
+                            <div class="requirement" id="reqNumber">
+                                <span class="req-icon">○</span>
+                                <span class="req-text" data-i18n="reqNumber">Un número (0-9)</span>
+                            </div>
+                            <div class="requirement" id="reqSpecial">
+                                <span class="req-icon">○</span>
+                                <span class="req-text" data-i18n="reqSpecial">Un carácter especial (!@#$%...)</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="input-group hidden" id="confirmPasswordGroup">
+                        <label for="confirmPassword" data-i18n="confirmPassword">Confirmar contraseña</label>
+                        <div class="password-input">
+                            <input type="password" id="confirmPassword" data-i18n-placeholder="repeatPassword" placeholder="Repite la contraseña" required>
+                            <button type="button" class="toggle-password" data-click="togglePasswordVisibility('confirmPassword')">👁️</button>
+                        </div>
+                        <p id="passwordMatch" class="password-match"></p>
+                    </div>
+
+                    <button type="submit" class="btn-primary btn-full" id="createWalletBtn" disabled data-i18n="createWalletBtn">
+                        Crear Wallet
+                    </button>
+                    
+                    <p class="setup-hint" data-i18n="setupHint">El proceso toma ~1 segundo (cifrado PBKDF2)</p>
+                </form>
+            </div>
+            
+            <!-- Tab Importar Wallet -->
+            <div id="importTab" class="setup-tab-content">
+                <div class="setup-section-header">
+                    <h3 data-i18n="importWallet">Importar Wallet</h3>
+                    <p data-i18n="importWalletDesc">Recupera tu wallet desde un certificado .PEM exportado previamente</p>
+                </div>
+                
+                <form id="importForm" class="setup-form">
+                    <div class="input-group">
+                        <label data-i18n="walletCertificate">Certificado de Wallet (.pem)</label>
+                        <div class="file-input-wrapper">
+                            <input type="file" id="importFile" accept=".pem,.json" data-change="handleImportFileSelect(event)">
+                            <div class="file-input-display" id="fileInputDisplay">
+                                <span class="file-icon">📄</span>
+                                <span class="file-text" data-i18n="selectCertificate">Seleccionar certificado...</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="importFilePassword" data-i18n="filePassword">Contraseña del archivo</label>
+                        <div class="password-input">
+                            <input type="password" id="importFilePassword" data-i18n-placeholder="filePasswordPlaceholder" placeholder="Contraseña usada al exportar">
+                            <button type="button" class="toggle-password" data-click="togglePasswordVisibility('importFilePassword')">👁️</button>
+                        </div>
+                        <small class="input-hint" data-i18n="samePasswordHint">Se usará esta misma contraseña para la wallet</small>
+                    </div>
+                    
+                    <div class="accordion-check">
+                        <label class="accordion-check-header">
+                            <input type="checkbox" id="keepSamePassword" data-click="toggleNewPasswordFields()">
+                            <span data-i18n="useDifferentPassword">Usar contraseña diferente para la wallet</span>
+                            <span class="accordion-arrow">›</span>
+                        </label>
+                        <div id="newPasswordFields" class="accordion-check-content hidden">
+                            <div class="input-group compact">
+                                <div class="password-input">
+                                    <input type="password" id="newWalletPassword" data-i18n-placeholder="newPasswordPlaceholder" placeholder="Nueva contraseña (mín. 8 caracteres)">
+                                    <button type="button" class="toggle-password" data-click="togglePasswordVisibility('newWalletPassword')">👁️</button>
+                                </div>
+                            </div>
+                            <div class="input-group compact">
+                                <div class="password-input">
+                                    <input type="password" id="newWalletPasswordConfirm" data-i18n-placeholder="confirmNewPassword" placeholder="Confirmar nueva contraseña">
+                                    <button type="button" class="toggle-password" data-click="togglePasswordVisibility('newWalletPasswordConfirm')">👁️</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-primary btn-full" id="importWalletBtn" data-i18n="importWalletBtn">
+                        Importar Wallet
+                    </button>
+                    
+                    <p class="setup-hint" data-i18n="importHint">El proceso toma ~2 segundos (descifrado PBKDF2)</p>
+                </form>
+            </div>
+
+            <div class="selfcustody-banner">
+                <div class="selfcustody-icon">🔐</div>
+                <div class="selfcustody-content">
+                    <h4 data-i18n="securityWarning">Advertencia de Seguridad</h4>
+                    <p data-i18n-html="selfCustodyWarning">Esta es una wallet de <strong>autocustodia</strong>. Tú controlas tus llaves privadas. Si almacenas activos de alto valor, te recomendamos usar una <strong>"cold wallet"</strong>.</p>
+                    <a href="https://0xaddress.com/cold-wallet" target="_blank" class="selfcustody-link" data-i18n="learnMore">Conoce más →</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Desbloqueo -->
+    <div id="unlockModal" class="modal">
+        <div class="modal-content unlock-modal">
+            <div class="unlock-logo">
+                <div class="unlock-icon">0x</div>
+            </div>
+            <h2 data-i18n="unlockTitle">Desbloquear Wallet</h2>
+            <form id="unlockForm">
+                <div class="input-group">
+                    <label for="unlockPassword" data-i18n="password">Contraseña</label>
+                    <div class="password-input">
+                        <input type="password" id="unlockPassword" data-i18n-placeholder="passwordPlaceholder" placeholder="Tu contraseña" required>
+                        <button type="button" class="toggle-password" data-click="togglePassword('unlockPassword')">👁️</button>
+                    </div>
+                </div>
+                
+                <div class="session-duration">
+                    <label data-i18n="keepUnlocked">Mantener desbloqueado:</label>
+                    <select id="sessionDuration">
+                        <option value="15">15 min</option>
+                        <option value="30">30 min</option>
+                        <option value="60" selected>1 hora</option>
+                        <option value="120">2 horas</option>
+                        <option value="240">4 horas</option>
+                        <option value="480">8 horas</option>
+                        <option value="1440">24 horas</option>
+                        <option value="10080">7 días</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="btn-primary">
+                    <span class="btn-icon">🔓</span>
+                    <span data-i18n="unlockBtn">Desbloquear</span>
+                </button>
+            </form>
+            
+            <div class="security-note">
+                <span class="security-icon">🔐</span>
+                <p data-i18n="securityNote">Tu llave privada está encriptada localmente. Solo verificamos que eres tú, nunca accedemos a tus fondos.</p>
+            </div>
+            
+            <div class="unlock-options">
+                <button class="btn-text" data-click="showImportInUnlock()">📥 <span data-i18n="importWallet">Importar Wallet</span></button>
+                <span class="separator">•</span>
+                <button class="btn-text btn-danger-text" data-click="resetWallet()">🗑️ <span data-i18n="resetWallet">Resetear Wallet</span></button>
+            </div>
+            
+            <!-- Formulario de importación oculto -->
+            <div id="unlockImportForm" style="display:none; margin-top: 1rem;">
+                <h3 style="font-size: 1rem; margin-bottom: 1rem;">📥 <span data-i18n="importWallet">Importar Wallet</span></h3>
+                <div class="input-group">
+                    <label data-i18n="walletCertificate">Certificado de Wallet (.pem)</label>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="unlockImportFile" accept=".pem,.json" data-change="handleUnlockImportFile(event)">
+                        <div class="file-input-display" id="unlockFileDisplay">
+                            <span class="file-icon">📄</span>
+                            <span class="file-text" data-i18n="selectCertificate">Seleccionar certificado...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label data-i18n="filePassword">Contraseña del archivo</label>
+                    <div class="password-input">
+                        <input type="password" id="unlockImportFilePassword" data-i18n-placeholder="filePasswordPlaceholder" placeholder="Contraseña del archivo">
+                        <button type="button" class="toggle-password" data-click="togglePasswordVisibility('unlockImportFilePassword')">👁️</button>
+                    </div>
+                    <small class="input-hint" data-i18n="samePasswordHint">Se usará esta misma contraseña para la wallet</small>
+                </div>
+                <div class="import-buttons">
+                    <button class="btn-secondary" data-click="hideImportInUnlock()" data-i18n="cancel">Cancelar</button>
+                    <button class="btn-primary" data-click="importFromUnlock()" data-i18n="import">Importar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Firma de Transacción -->
+    <div id="signModal" class="modal">
+        <div class="modal-content sign-modal">
+            <div class="sign-header">
+                <h2>🔐 Firmar Transacción</h2>
+                <p>Ingresa tu contraseña para autorizar</p>
+            </div>
+            
+            <div id="txDetails" class="tx-details">
+                <!-- Detalles de la transacción se insertan aquí -->
+            </div>
+
+            <form id="signForm">
+                <div class="input-group">
+                    <label for="signPassword">Contraseña</label>
+                    <div class="password-input">
+                        <input type="password" id="signPassword" placeholder="Tu contraseña" required>
+                        <button type="button" class="toggle-password" data-click="togglePassword('signPassword')">👁️</button>
+                    </div>
+                </div>
+                <div class="sign-buttons">
+                    <button type="button" class="btn-secondary" data-click="cancelSign()">Cancelar</button>
+                    <button type="submit" class="btn-primary">
+                        <span class="btn-icon">✍️</span>
+                        Firmar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Recibir -->
+    <div id="receiveModal" class="modal">
+        <div class="modal-content receive-modal-v3">
+            <button class="modal-close" data-click="closeModal('receiveModal')">&times;</button>
+            <h2 id="receiveTitle"><span data-i18n="receiveIn">Recibir en</span> <span id="receiveNetworkName">Rollux</span></h2>
+            
+            <div class="receive-content-v3">
+                <!-- QR con logo central -->
+                <div class="qr-container">
+                    <div id="qrCode" class="qr-code-v3"></div>
+                    <div class="qr-logo" id="qrNetworkLogo">
+                        <span id="qrLogoIcon">⟠</span>
+                    </div>
+                </div>
+                
+                <!-- Información de dirección -->
+                <div class="receive-info">
+                    <h3 id="receiveAddressTitle" data-i18n="evmAddress">Dirección EVM</h3>
+                    <p class="receive-desc" data-i18n="evmAddressDesc">Esta dirección funciona en la mayoría de redes compatibles con Ethereum (EVM).</p>
+                </div>
+                
+                <!-- Dirección -->
+                <div class="address-display">
+                    <span id="receiveAddress" class="address-text"></span>
+                </div>
+                
+                <!-- Botones de acción -->
+                <button class="btn-copy-address" data-click="copyAddress()">
+                    <span data-i18n="copyAddress">Copiar dirección</span> <span>📋</span>
+                </button>
+                
+                <button class="btn-view-explorer" data-click="viewOnExplorer()">
+                    <span data-i18n="viewInExplorer">Ver en explorador</span>
+                </button>
+                
+                <!-- Nota importante -->
+                <div class="receive-warning">
+                    <span class="warning-icon">⚠️</span>
+                    <span class="warning-text" data-i18n="receiveWarning">Verifica que envíes activos desde una red compatible. Enviar desde una red incorrecta puede resultar en pérdida de fondos.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Enviar -->
+    <div id="sendModal" class="modal">
+        <div class="modal-content send-modal">
+            <button class="modal-close" data-click="closeModal('sendModal')">&times;</button>
+            <h2>📤 Enviar</h2>
+            
+            <div class="send-tabs">
+                <button class="tab-btn active" data-tab="native" data-click="switchSendTab('native')"><span id="nativeTabSymbol">SYS</span></button>
+                <button class="tab-btn" data-tab="token" data-click="switchSendTab('token')">ERC20</button>
+                <button class="tab-btn" data-tab="nft" data-click="switchSendTab('nft')">NFT</button>
+            </div>
+
+            <form id="sendForm" class="send-form">
+                <div class="input-group">
+                    <label for="recipientAddress">Dirección Destino</label>
+                    <input type="text" id="recipientAddress" placeholder="0x..." required>
+                </div>
+
+                <div id="tokenSelectGroup" class="input-group" style="display:none;">
+                    <label for="tokenSelect">Token</label>
+                    <select id="tokenSelect">
+                        <option value="">-- Selecciona --</option>
+                    </select>
+                </div>
+
+                <div id="nftSelectGroup" class="input-group" style="display:none;">
+                    <label for="nftSelect">NFT</label>
+                    <select id="nftSelect">
+                        <option value="">-- Selecciona --</option>
+                    </select>
+                </div>
+
+                <div id="amountGroup" class="input-group">
+                    <label for="sendAmount">Cantidad</label>
+                    <div class="amount-input">
+                        <input type="number" id="sendAmount" placeholder="0.0" step="any" required>
+                        <span id="sendTokenSymbol" class="token-symbol">SYS</span>
+                    </div>
+                    <p class="balance-hint">Balance: <span id="sendMaxBalance">0</span> <button type="button" class="btn-max" data-click="setMaxAmount()">MAX</button></p>
+                </div>
+
+                <div class="gas-estimate">
+                    <span>⛽ Gas:</span>
+                    <span id="gasEstimate">--</span>
+                </div>
+
+                <button type="submit" class="btn-primary btn-send">
+                    <span class="btn-icon">🚀</span>
+                    Enviar
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Escáner QR -->
+    <!-- Modal de Configuración de Redes -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content config-modal">
+            <button class="modal-close" data-click="closeModal('settingsModal')">&times;</button>
+            
+            <div class="modal-header-banner">
+                <div class="modal-header-icon">⚡</div>
+                <h2>Redes</h2>
+                <p>Configura tus redes blockchain</p>
+            </div>
+            
+            <div class="config-modal-body">
+                <!-- Red Actual -->
+                <div class="config-section" id="currentNetworkSection">
+                    <div class="config-section-header" data-click="toggleConfigSection('currentNetwork')">
+                        <div class="config-section-title">
+                            <span class="config-section-icon">◉</span>
+                            <span>Red Actual</span>
+                        </div>
+                        <span class="config-section-arrow">›</span>
+                    </div>
+                    <div class="config-section-content" id="currentNetworkContent">
+                        <div class="current-network-card">
+                            <span class="network-name" id="currentNetworkName">Rollux</span>
+                            <span class="network-chain-id" id="currentChainId">Chain ID: 570</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Seleccionar Red -->
+                <div class="config-section" id="selectNetworkSection">
+                    <div class="config-section-header" data-click="toggleConfigSection('selectNetwork')">
+                        <div class="config-section-title">
+                            <span class="config-section-icon">☰</span>
+                            <span>Seleccionar Red</span>
+                        </div>
+                        <span class="config-section-arrow">›</span>
+                    </div>
+                    <div class="config-section-content" id="selectNetworkContent">
+                        <div class="network-list" id="networkList">
+                            <!-- Se llena dinámicamente -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Configurar Red -->
+                <div class="config-section" id="configNetworkSection">
+                    <div class="config-section-header" data-click="toggleConfigSection('configNetwork')">
+                        <div class="config-section-title">
+                            <span class="config-section-icon">⚙</span>
+                            <span>Configurar Red</span>
+                        </div>
+                        <span class="config-section-arrow">›</span>
+                    </div>
+                    <div class="config-section-content" id="configNetworkContent">
+                        <p class="config-desc">Modifica los parámetros de la red actual.</p>
+                        
+                        <div class="input-group compact">
+                            <label>Nombre</label>
+                            <input type="text" id="editNetworkName" placeholder="Nombre de la red">
+                        </div>
+                        
+                        <p class="config-note" style="margin: 12px 0 8px; font-weight: 500;">HTTP (RPC)</p>
+                        <div class="input-group compact">
+                            <label>RPC Principal</label>
+                            <input type="text" id="editNetworkRpc" placeholder="https://rpc.example.com">
+                        </div>
+                        <div class="input-group compact">
+                            <label>RPC Secundario</label>
+                            <input type="text" id="editNetworkRpcFallback" placeholder="https://rpc2.example.com">
+                        </div>
+                        
+                        <p class="config-note" style="margin: 12px 0 8px; font-weight: 500;">WebSocket (tiempo real)</p>
+                        <div class="input-group compact">
+                            <label>WSS Principal</label>
+                            <input type="text" id="editNetworkWs" placeholder="wss://rpc.example.com/wss">
+                        </div>
+                        <div class="input-group compact">
+                            <label>WSS Secundario</label>
+                            <input type="text" id="editNetworkWsFallback" placeholder="wss://rpc2.example.com/wss">
+                        </div>
+                        
+                        <p class="config-note" style="margin: 12px 0 8px; font-weight: 500;">Otros</p>
+                        <div class="input-group compact">
+                            <label>Chain ID</label>
+                            <input type="number" id="editNetworkChainId" placeholder="1" disabled>
+                            <small class="input-hint">El Chain ID no se puede modificar</small>
+                        </div>
+                        <div class="input-group compact">
+                            <label>Explorador</label>
+                            <input type="text" id="editNetworkExplorer" placeholder="https://explorer.example.com">
+                        </div>
+                        <div class="input-group compact">
+                            <label>Símbolo</label>
+                            <input type="text" id="editNetworkSymbol" placeholder="ETH">
+                        </div>
+                        
+                        <div class="config-actions">
+                            <button class="btn-secondary" id="btnResetNetwork" data-click="resetCurrentNetworkToDefault()">Restaurar</button>
+                            <button class="btn-primary" data-click="saveNetworkConfig()">Guardar</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Agregar Red -->
+                <div class="config-section" id="addNetworkSection">
+                    <div class="config-section-header" data-click="toggleConfigSection('addNetwork')">
+                        <div class="config-section-title">
+                            <span class="config-section-icon">＋</span>
+                            <span>Agregar Red</span>
+                        </div>
+                        <span class="config-section-arrow">›</span>
+                    </div>
+                    <div class="config-section-content" id="addNetworkContent">
+                        <div class="input-group compact">
+                            <input type="text" id="newNetworkName" placeholder="Nombre de la red">
+                        </div>
+                        <div class="input-group compact">
+                            <input type="number" id="newNetworkChainId" placeholder="Chain ID (ej: 1)">
+                        </div>
+                        <div class="input-group compact">
+                            <input type="text" id="newNetworkRpc" placeholder="RPC URL">
+                        </div>
+                        <div class="input-group compact">
+                            <input type="text" id="newNetworkExplorer" placeholder="URL del explorador">
+                        </div>
+                        <div class="input-group compact">
+                            <input type="text" id="newNetworkSymbol" placeholder="Símbolo (ej: ETH)">
+                        </div>
+                        <button class="btn-primary btn-full" data-click="saveNewCustomNetwork()">Guardar Red</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Seguridad (Frase Semilla, Llave Privada, Certificado) -->
+    <div id="privateKeyModal" class="modal">
+        <div class="modal-content config-modal">
+            <button class="modal-close" data-click="closeModal('privateKeyModal')">&times;</button>
+            
+            <div class="modal-header-banner">
+                <div class="modal-header-icon">⛨</div>
+                <h2>Seguridad</h2>
+                <p>Gestiona tus credenciales</p>
+            </div>
+            
+            <div class="config-modal-body">
+                <!-- Sección Frase Semilla -->
+                <div class="config-section" id="seedPhraseSection">
+                    <div class="config-section-header" data-click="toggleConfigSection('seedPhrase')">
+                        <div class="config-section-title">
+                            <span class="config-section-icon">❋</span>
+                            <span>Frase de Recuperación</span>
+                        </div>
+                        <span class="config-section-arrow">›</span>
+                    </div>
+                    <div class="config-section-content" id="seedPhraseContent">
+                        <div id="seedPasswordStep">
+                            <p class="config-desc">Ingresa tu contraseña para revelar la frase de 12 palabras.</p>
+                            <div class="input-group compact">
+                                <div class="password-input">
+                                    <input type="password" id="seedPassword" placeholder="Tu contraseña">
+                                    <button type="button" class="toggle-password" data-click="togglePasswordVisibility('seedPassword')">👁️</button>
+                                </div>
+                            </div>
+                            <button class="btn-primary btn-full" data-click="revealSeedPhrase()">Revelar Frase</button>
+                        </div>
+                        <div id="seedDisplayStep" class="hidden">
+                            <div class="seed-words-grid" id="seedWordsGrid"></div>
+                            <div class="seed-actions">
+                                <button class="btn-copy-seed" data-click="copySeedPhrase()">
+                                    <span>☐</span> Copiar al portapapeles
+                                </button>
+                            </div>
+                            <p class="config-link">
+                                ¿Exportar cifrado? 
+                                <a href="#" data-click="goToExportSection()">Genera un .PEM</a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Sección Llave Privada -->
+                <div class="config-section" id="privateKeySection">
+                    <div class="config-section-header" data-click="toggleConfigSection('privateKey')">
+                        <div class="config-section-title">
+                            <span class="config-section-icon">⚿</span>
+                            <span>Llave Privada</span>
+                        </div>
+                        <span class="config-section-arrow">›</span>
+                    </div>
+                    <div class="config-section-content" id="privateKeyContent">
+                        <div id="keyPasswordStep">
+                            <p class="config-desc">Tu llave privada otorga control total sobre tus fondos.</p>
+                            <div class="input-group compact">
+                                <div class="password-input">
+                                    <input type="password" id="exportKeyPassword" placeholder="Tu contraseña">
+                                    <button type="button" class="toggle-password" data-click="togglePasswordVisibility('exportKeyPassword')">👁️</button>
+                                </div>
+                            </div>
+                            <button class="btn-primary btn-full" data-click="exportPrivateKey()">Revelar Llave</button>
+                        </div>
+                        <div id="keyDisplayStep" class="hidden">
+                            <div class="private-key-display" data-click="togglePrivateKeyVisibility()">
+                                <span id="privateKeyMasked" class="key-masked">••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••</span>
+                                <span id="privateKeyVisible" class="key-visible hidden"></span>
+                            </div>
+                            <p class="key-hint">Haz clic para revelar/ocultar</p>
+                            <button class="btn-copy-key" data-click="copyPrivateKey()">
+                                <span>☐</span> Copiar al portapapeles
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Sección Certificado PEM -->
+                <div class="config-section" id="certificateSection">
+                    <div class="config-section-header" data-click="toggleConfigSection('certificate')">
+                        <div class="config-section-title">
+                            <span class="config-section-icon">⎘</span>
+                            <span>Certificado .PEM</span>
+                        </div>
+                        <span class="config-section-arrow">›</span>
+                    </div>
+                    <div class="config-section-content" id="certificateContent">
+                        <p class="config-desc">Genera un backup cifrado con 600,000 iteraciones PBKDF2.</p>
+                        <div id="exportFileForm">
+                            <div class="input-group compact">
+                                <div class="password-input">
+                                    <input type="password" id="exportFileWalletPassword" placeholder="Contraseña de la wallet">
+                                    <button type="button" class="toggle-password" data-click="togglePasswordVisibility('exportFileWalletPassword')">👁️</button>
+                                </div>
+                            </div>
+                            
+                            <div class="accordion-check">
+                                <label class="accordion-check-header">
+                                    <input type="checkbox" id="useDifferentPassword" data-click="toggleExportPasswordFields()">
+                                    <span>Usar contraseña diferente</span>
+                                    <span class="accordion-arrow">›</span>
+                                </label>
+                                <div id="differentPasswordFields" class="accordion-check-content hidden">
+                                    <div class="input-group compact">
+                                        <div class="password-input">
+                                            <input type="password" id="exportFilePassword" placeholder="Nueva contraseña">
+                                            <button type="button" class="toggle-password" data-click="togglePasswordVisibility('exportFilePassword')">👁️</button>
+                                        </div>
+                                    </div>
+                                    <div class="input-group compact">
+                                        <div class="password-input">
+                                            <input type="password" id="exportFilePasswordConfirm" placeholder="Confirmar">
+                                            <button type="button" class="toggle-password" data-click="togglePasswordVisibility('exportFilePasswordConfirm')">👁️</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <button class="btn-primary btn-full" data-click="exportEncryptedFile()">Generar Certificado</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Zona de Peligro -->
+            <div class="config-danger-zone">
+                <button class="btn-danger-outline" data-click="resetWallet()">
+                    Resetear Wallet
+                </button>
+                <p class="danger-hint">Eliminará tu wallet permanentemente</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Preferencias -->
+    <div id="preferencesModal" class="modal">
+        <div class="modal-content config-modal">
+            <button class="modal-close" data-click="closeModal('preferencesModal')">&times;</button>
+            
+            <div class="modal-header-banner">
+                <div class="modal-header-icon">⚙</div>
+                <h2>Preferencias</h2>
+                <p>Personaliza tu experiencia</p>
+            </div>
+            
+            <div class="config-modal-body">
+                <!-- Apariencia -->
+                <div class="config-section" id="appearanceSection">
+                    <div class="config-section-header" data-click="toggleConfigSection('appearance')">
+                        <div class="config-section-title">
+                            <span class="config-section-icon">◐</span>
+                            <span data-i18n="appearance">Apariencia</span>
+                        </div>
+                        <span class="config-section-arrow">›</span>
+                    </div>
+                    <div class="config-section-content" id="appearanceContent">
+                        <!-- Selector de Idioma -->
+                        <div class="preference-row">
+                            <div class="preference-info">
+                                <span class="preference-label" data-i18n="language">Idioma</span>
+                                <span class="preference-desc" data-i18n="languageDesc">Idioma de la interfaz</span>
+                            </div>
+                            <select id="prefLanguage" class="preference-select" data-change="changeLanguageFromSelect()">
+                                <option value="es">🇪🇸 Español</option>
+                                <option value="en">🇺🇸 English</option>
+                            </select>
+                        </div>
+                        <div class="preference-row">
+                            <div class="preference-info">
+                                <span class="preference-label" data-i18n="darkMode">Modo Oscuro</span>
+                                <span class="preference-desc" data-i18n="darkModeDesc">Tema visual de la app</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="prefDarkMode" data-click="toggleThemePreference()">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="preference-row">
+                            <div class="preference-info">
+                                <span class="preference-label" data-i18n="eduTips">Tips Educativos</span>
+                                <span class="preference-desc" data-i18n="eduTipsDesc">Mostrar consejos útiles</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="prefEduTips" checked data-click="toggleTipsPreference()">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Seguridad PBKDF2 -->
+                <div class="config-section" id="pbkdf2Section">
+                    <div class="config-section-header" data-click="toggleConfigSection('pbkdf2')">
+                        <div class="config-section-title">
+                            <span class="config-section-icon">⛨</span>
+                            <span>Seguridad PBKDF2</span>
+                        </div>
+                        <span class="config-section-arrow">›</span>
+                    </div>
+                    <div class="config-section-content" id="pbkdf2Content">
+                        <p class="config-desc">Iteraciones para derivación de claves. Mayor = más seguro pero más lento.</p>
+                        
+                        <div class="preference-row">
+                            <div class="preference-info">
+                                <span class="preference-label">Desbloqueo</span>
+                                <span class="preference-desc">Acceso a la wallet</span>
+                            </div>
+                            <select id="prefUnlockIterations" class="preference-select">
+                                <option value="100000" selected>100k</option>
+                                <option value="200000">200k</option>
+                                <option value="300000">300k</option>
+                                <option value="500000">500k</option>
+                            </select>
+                        </div>
+                        
+                        <div class="preference-row">
+                            <div class="preference-info">
+                                <span class="preference-label">Exportación</span>
+                                <span class="preference-desc">Archivos de backup</span>
+                            </div>
+                            <select id="prefExportIterations" class="preference-select">
+                                <option value="100000">100k</option>
+                                <option value="200000">200k</option>
+                                <option value="300000" selected>300k</option>
+                                <option value="600000">600k</option>
+                            </select>
+                        </div>
+                        
+                        <button class="btn-secondary btn-full" data-click="applyIterationsChange()">Aplicar Cambios</button>
+                        <p class="config-note">Requiere contraseña para re-cifrar</p>
+                    </div>
+                </div>
+                
+                <!-- Cambiar Contraseña -->
+                <div class="config-section" id="passwordSection">
+                    <div class="config-section-header" data-click="toggleConfigSection('password')">
+                        <div class="config-section-title">
+                            <span class="config-section-icon">⚿</span>
+                            <span>Cambiar Contraseña</span>
+                        </div>
+                        <span class="config-section-arrow">›</span>
+                    </div>
+                    <div class="config-section-content" id="passwordContent">
+                        <div class="input-group compact">
+                            <div class="password-input">
+                                <input type="password" id="currentPassword" placeholder="Contraseña actual">
+                                <button type="button" class="toggle-password" data-click="togglePasswordVisibility('currentPassword')">👁️</button>
+                            </div>
+                        </div>
+                        <div class="input-group compact">
+                            <div class="password-input">
+                                <input type="password" id="newPassword" placeholder="Nueva contraseña">
+                                <button type="button" class="toggle-password" data-click="togglePasswordVisibility('newPassword')">👁️</button>
+                            </div>
+                        </div>
+                        <div class="input-group compact">
+                            <div class="password-input">
+                                <input type="password" id="confirmNewPassword" placeholder="Confirmar nueva">
+                                <button type="button" class="toggle-password" data-click="togglePasswordVisibility('confirmNewPassword')">👁️</button>
+                            </div>
+                        </div>
+                        <button class="btn-primary btn-full" data-click="executeChangePassword()">Cambiar Contraseña</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Agregar Contrato -->
+    <div id="addContractModal" class="modal">
+        <div class="modal-content contract-modal">
+            <button class="modal-close" data-click="closeModal('addContractModal')">&times;</button>
+            <h2>➕ <span data-i18n="addContract">Agregar Contrato</span></h2>
+            
+            <form id="addContractForm">
+                <div class="input-group">
+                    <label for="contractAddress" data-i18n="contractAddress">Dirección del Contrato</label>
+                    <input type="text" id="contractAddress" placeholder="0x..." required>
+                </div>
+
+                <div class="input-group">
+                    <label for="contractType" data-i18n="contractType">Tipo de Contrato</label>
+                    <select id="contractType" required>
+                        <option value="" data-i18n="selectType">-- Selecciona tipo --</option>
+                        <option value="ERC20">ERC20 (Token)</option>
+                        <option value="ERC721">ERC721 (NFT)</option>
+                        <option value="OTHER" data-i18n="otherContract">Otro Contrato</option>
+                    </select>
+                </div>
+
+                <!-- Campos adicionales para tipo OTHER -->
+                <div id="otherContractFields" style="display:none;">
+                    <div class="input-group">
+                        <label for="contractLabel"><span data-i18n="label">Etiqueta</span> <span class="hint" data-i18n="maxChars">(máx 10 caracteres)</span></label>
+                        <input type="text" id="contractLabel" placeholder="Ej: SWAP, STAKE" maxlength="10" pattern="[A-Za-z0-9]+" title="Solo letras y números, sin espacios">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="contractAbiUrl">URL del ABI <span class="hint" data-i18n="optional">(opcional)</span></label>
+                        <input type="text" id="contractAbiUrl" placeholder="https://... o ipfs://...">
+                        <p class="input-hint" data-i18n="abiUrlHint">JSON del ABI o IPFS CID. Si no se proporciona, se detectará automáticamente.</p>
+                    </div>
+                </div>
+
+                <div class="contract-info" id="contractPreview" style="display:none;">
+                    <h4 data-i18n="preview">Vista Previa</h4>
+                    <div class="preview-details">
+                        <p><strong data-i18n="name">Nombre:</strong> <span id="previewName">-</span></p>
+                        <p><strong data-i18n="symbol">Símbolo:</strong> <span id="previewSymbol">-</span></p>
+                        <p id="previewOwnerRow" style="display:none;"><strong>Owner:</strong> <span id="previewOwner">-</span> <span id="previewIsOwner" class="badge"></span></p>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-primary">
+                    <span class="btn-icon">✅</span>
+                    <span data-i18n="add">Agregar</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Deploy Contrato -->
+    <div id="deployContractModal" class="modal">
+        <div class="modal-content deploy-modal">
+            <button class="modal-close" data-click="closeModal('deployContractModal')">&times;</button>
+            
+            <div class="deploy-modal-header">
+                <div class="deploy-icon" id="deployContractIcon">🚀</div>
+                <h2 id="deployContractTitle">Crear Contrato</h2>
+            </div>
+            
+            <input type="hidden" id="deployContractId">
+            
+            <div id="deployModalContent">
+                <div id="deployParams" class="deploy-params-form">
+                    <!-- Parámetros dinámicos del constructor -->
+                </div>
+                
+                <div class="deploy-actions">
+                    <button class="btn-secondary" data-click="closeModal('deployContractModal')">Cancelar</button>
+                    <button class="btn-primary" data-click="ContractsManager.deployContract()">
+                        <span class="btn-icon">🚀</span>
+                        Desplegar Contrato
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Detalle de Contrato -->
+    <div id="contractDetailModal" class="modal">
+        <div class="modal-content contract-detail-modal">
+            <button class="modal-close" data-click="closeModal('contractDetailModal')">&times;</button>
+            
+            <div class="contract-detail-header">
+                <h2 id="contractDetailTitle">Contrato</h2>
+                <div class="contract-detail-meta">
+                    <span class="contract-type-badge" id="contractDetailType">ERC20</span>
+                    <span class="contract-address mono" id="contractDetailAddress">0x...</span>
+                    <button class="btn-icon-sm" data-click="ContractsManager.copyAddress(document.getElementById('contractDetailAddress').textContent)">
+                        📋
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Info del contrato (tokens, supply, etc) -->
+            <div id="contractInfoSection" class="contract-info-section">
+                <!-- Cargado dinámicamente -->
+            </div>
+            
+            <!-- Métodos del contrato -->
+            <div id="contractMethodsSection" class="contract-methods-section">
+                <!-- Cargado dinámicamente -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Detalle de NFT -->
+    <div id="nftDetailModal" class="modal">
+        <div class="modal-content nft-detail-modal">
+            <button class="modal-close" data-click="closeModal('nftDetailModal')">&times;</button>
+            
+            <div class="nft-detail-content">
+                <div class="nft-detail-image" id="nftDetailImage">
+                    <div class="nft-placeholder">🎨</div>
+                </div>
+                
+                <div class="nft-detail-info">
+                    <h2 id="nftDetailName">NFT #0</h2>
+                    <div class="nft-detail-collection">
+                        <span id="nftDetailCollection">Colección</span>
+                        <span class="nft-detail-symbol" id="nftDetailSymbol">SYM</span>
+                    </div>
+                    
+                    <div class="nft-detail-section">
+                        <h4>📋 Información</h4>
+                        <div class="nft-detail-row">
+                            <span>Token ID</span>
+                            <span id="nftDetailTokenId" class="mono">-</span>
+                        </div>
+                        <div class="nft-detail-row">
+                            <span>Contrato</span>
+                            <span id="nftDetailContract" class="mono clickable" data-click="copyToClipboard(this.textContent)">-</span>
+                        </div>
+                    </div>
+                    
+                    <div class="nft-detail-section" id="nftMetadataSection" style="display:none;">
+                        <h4>🏷️ Metadata</h4>
+                        <div id="nftMetadataContent" class="nft-metadata-grid">
+                        </div>
+                    </div>
+                    
+                    <div class="nft-detail-actions">
+                        <button class="btn-secondary btn-sm" data-click="viewNFTInExplorer()">
+                            🔗 Explorador
+                        </button>
+                        <button class="btn-primary btn-sm" data-click="openNFTTransfer()">
+                            📤 Transferir
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Formulario de Transferencia (oculto inicialmente) -->
+            <div id="nftTransferForm" class="transfer-form" style="display:none;">
+                <h3>📤 Transferir NFT</h3>
+                
+                <div class="transfer-preview">
+                    <img id="nftTransferPreview" src="" alt="NFT">
+                    <div>
+                        <strong id="nftTransferName">NFT</strong>
+                        <span id="nftTransferTokenId" class="mono">#0</span>
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <label>Dirección Destino</label>
+                    <input type="text" id="nftRecipientAddress" placeholder="0x...">
+                </div>
+                
+                <div class="transfer-buttons">
+                    <button type="button" class="btn-secondary" data-click="cancelNFTTransfer()">Cancelar</button>
+                    <button type="button" class="btn-primary" data-click="confirmNFTTransfer()">
+                        <span class="btn-icon">✍️</span>
+                        Confirmar Transferencia
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Estado de procesamiento -->
+            <div id="nftProcessing" class="processing-state" style="display:none;">
+                <div class="processing-spinner"></div>
+                <h3>Procesando transferencia...</h3>
+                <p>Por favor espera mientras se confirma la transacción</p>
+            </div>
+            
+            <!-- Estado de éxito -->
+            <div id="nftSuccess" class="success-state" style="display:none;">
+                <div class="success-icon">✅</div>
+                <h3>¡Transferencia exitosa!</h3>
+                <p>Tu NFT ha sido transferido correctamente</p>
+                <div class="tx-hash-box">
+                    <span>TX Hash:</span>
+                    <a id="nftTxHash" href="#" target="_blank" class="mono">0x...</a>
+                </div>
+                <button class="btn-primary" data-click="closeNFTDetailModal()">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Detalle de Token ERC20 -->
+    <div id="tokenDetailModal" class="modal">
+        <div class="modal-content token-detail-modal-v2">
+            <button class="modal-close" data-click="closeModal('tokenDetailModal')">&times;</button>
+            
+            <!-- Balance card IGUAL al home -->
+            <section class="balance-card">
+                <div class="balance-header">
+                    <span class="balance-label">Balance Total</span>
+                    <a id="tokenExplorerLink" href="#" target="_blank" class="address-badge">
+                        <span id="tokenDetailContractShort">0x...Ee43</span>
+                        <span class="explorer-icon">🔗</span>
+                    </a>
+                </div>
+                
+                <div class="balance-amount">
+                    <span id="tokenDetailBalance">0</span>
+                    <span class="balance-symbol" id="tokenDetailSymbol">TKN</span>
+                </div>
+
+                <div class="balance-actions">
+                    <button class="action-btn" data-click="showTokenReceive()">
+                        <span class="action-icon">📥</span>
+                        <span>Recibir</span>
+                    </button>
+                    <button class="action-btn active" data-click="openTokenTransfer()">
+                        <span class="action-icon">📤</span>
+                        <span>Enviar</span>
+                    </button>
+                    <button class="action-btn" data-click="openContractMethods()">
+                        <span class="action-icon">⚙️</span>
+                        <span>Métodos</span>
+                    </button>
+                </div>
+            </section>
+            
+            <!-- Secondary actions -->
+            <div class="token-extra-actions">
+                <button class="btn-text-sm" data-click="copyTokenContract()">📋 Copiar contrato</button>
+                <button class="btn-text-sm danger" data-click="removeCurrentToken()">🗑️ Eliminar</button>
+            </div>
+            
+            <!-- Hidden elements for data -->
+            <span id="tokenDetailName" style="display:none;"></span>
+            <span id="tokenDetailContract" style="display:none;"></span>
+            <span id="tokenDetailDecimals" style="display:none;"></span>
+            
+            <!-- Formulario de Transferencia -->
+            <div id="tokenTransferForm" class="transfer-form" style="display:none;">
+                <h3>📤 Enviar Tokens</h3>
+                
+                <div class="transfer-token-preview">
+                    <div class="token-icon-small" id="tokenTransferIcon">TK</div>
+                    <div>
+                        <strong id="tokenTransferName">Token</strong>
+                        <span class="token-transfer-balance">Balance: <span id="tokenTransferBalance">0</span></span>
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <label>Dirección Destino</label>
+                    <input type="text" id="tokenRecipientAddress" placeholder="0x...">
+                </div>
+                
+                <div class="input-group">
+                    <label>Cantidad</label>
+                    <div class="amount-input">
+                        <input type="number" id="tokenTransferAmount" placeholder="0.0" step="any">
+                        <span id="tokenTransferSymbol" class="token-symbol">TKN</span>
+                    </div>
+                    <p class="balance-hint">
+                        Disponible: <span id="tokenAvailableBalance">0</span>
+                        <button type="button" class="btn-max" data-click="setMaxTokenAmount()">MAX</button>
+                    </p>
+                </div>
+                
+                <div class="transfer-buttons">
+                    <button type="button" class="btn-secondary" data-click="cancelTokenTransfer()">Cancelar</button>
+                    <button type="button" class="btn-primary" data-click="confirmTokenTransfer()">
+                        <span class="btn-icon">✍️</span>
+                        Confirmar Envío
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Estado de procesamiento -->
+            <div id="tokenProcessing" class="processing-state" style="display:none;">
+                <div class="processing-spinner"></div>
+                <h3>Procesando transacción...</h3>
+                <p>Por favor espera mientras se confirma</p>
+            </div>
+            
+            <!-- Estado de éxito -->
+            <div id="tokenSuccess" class="success-state" style="display:none;">
+                <div class="success-icon">✅</div>
+                <h3>¡Envío exitoso!</h3>
+                <p>Tus tokens han sido enviados correctamente</p>
+                <div class="tx-hash-box">
+                    <span>TX Hash:</span>
+                    <a id="tokenTxHash" href="#" target="_blank" class="mono">0x...</a>
+                </div>
+                <button class="btn-primary" data-click="closeTokenDetailModal()">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Métodos del Contrato -->
+    <div id="contractMethodsModal" class="modal">
+        <div class="modal-content methods-modal">
+            <button class="modal-close" data-click="closeModal('contractMethodsModal')">&times;</button>
+            
+            <div class="methods-header">
+                <h2>⚙️ Métodos</h2>
+                <div class="methods-contract-info">
+                    <span class="contract-type-badge" id="methodsContractType">ERC20</span>
+                    <span class="mono" id="methodsContractAddress">0x...</span>
+                </div>
+            </div>
+            
+            <!-- Tabs Read/Write/Events -->
+            <div class="methods-tabs">
+                <button class="methods-tab active" data-tab="read" data-click="switchMethodsTab('read')">
+                    📖 Lectura
+                </button>
+                <button class="methods-tab" data-tab="write" data-click="switchMethodsTab('write')">
+                    ✏️ Escritura
+                </button>
+                <button class="methods-tab" data-tab="events" data-click="switchMethodsTab('events')">
+                    📡 Eventos
+                </button>
+            </div>
+            
+            <!-- Read Methods -->
+            <div id="readMethodsTab" class="methods-tab-content active">
+                <div id="readMethodsList" class="methods-list">
+                    <p class="empty-text">Cargando...</p>
+                </div>
+            </div>
+            
+            <!-- Write Methods -->
+            <div id="writeMethodsTab" class="methods-tab-content">
+                <div id="writeMethodsList" class="methods-list">
+                    <p class="empty-text">Cargando...</p>
+                </div>
+            </div>
+            
+            <!-- Events -->
+            <div id="eventsMethodsTab" class="methods-tab-content">
+                <div class="events-section">
+                    <div class="events-header">Eventos definidos:</div>
+                    <div id="eventsList" class="events-defined">
+                        <p class="empty-text">Sin eventos</p>
+                    </div>
+                </div>
+                <div class="events-section">
+                    <div class="events-header">
+                        Escucha en vivo:
+                        <button class="btn-sm" id="startListeningBtn" data-click="startEventListening()">▶️</button>
+                        <button class="btn-sm" id="stopListeningBtn" data-click="stopEventListening()" style="display:none;">⏹️</button>
+                        <button class="btn-text-sm" data-click="clearEventLogs()">🗑️</button>
+                    </div>
+                    <div id="eventLogsList" class="event-logs">
+                        <p class="empty-text">Sin eventos</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Result display global -->
+            <div id="methodResult" class="method-result" style="display:none;">
+                <div class="result-header">
+                    <span>Resultado</span>
+                    <button class="btn-text btn-sm" data-click="closeMethodResult()">✕</button>
+                </div>
+                <pre id="methodResultContent"></pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Detalle de Contrato Personalizado -->
+    <div id="otherContractDetailModal" class="modal">
+        <div class="modal-content other-contract-modal">
+            <button class="modal-close" data-click="closeModal('otherContractDetailModal')">&times;</button>
+            
+            <div class="other-contract-header">
+                <div class="other-contract-icon" id="otherContractIcon">📄</div>
+                <div class="other-contract-info">
+                    <h2 id="otherContractName">Contrato</h2>
+                    <span class="contract-type-badge" id="otherContractLabel">CUSTOM</span>
+                </div>
+            </div>
+            
+            <div class="other-contract-details">
+                <div class="detail-row">
+                    <span>Contrato</span>
+                    <span class="mono clickable" id="otherContractAddress" data-click="copyToClipboard(this.textContent)">0x...</span>
+                </div>
+                <div class="detail-row" id="otherContractOwnerRow" style="display:none;">
+                    <span>Owner</span>
+                    <span>
+                        <span class="mono" id="otherContractOwner">0x...</span>
+                        <span class="badge" id="otherContractIsOwner"></span>
+                    </span>
+                </div>
+                <div class="detail-row" id="otherContractBalanceRow" style="display:none;">
+                    <span>Balance</span>
+                    <span id="otherContractBalance">-</span>
+                </div>
+            </div>
+            
+            <div class="other-contract-actions">
+                <button class="btn-secondary btn-sm" data-click="viewOtherInExplorer()">
+                    🔗 Explorador
+                </button>
+                <button class="btn-primary btn-sm" data-click="openContractMethodsForOther()">
+                    ⚙️ Métodos
+                </button>
+            </div>
+            
+            <div class="other-contract-actions secondary-actions">
+                <button class="btn-text danger" data-click="removeOtherContract()">
+                    🗑️ Eliminar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Aplicación Principal -->
+    <div id="app" class="app hidden">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <div class="logo">
+                    <span class="logo-hex">0x</span><span class="logo-text">address</span>
+                </div>
+                <span class="network-badge" data-click="showSettings()" style="cursor:pointer;" title="Cambiar red">
+                    <span class="network-dot"></span>
+                    <span id="networkName">Rollux</span>
+                </span>
+            </div>
+            <div class="header-right">
+                <!-- Contador de sesión -->
+                <div class="session-timer" id="sessionTimer">
+                    <span class="timer-icon">⏱</span>
+                    <span class="timer-value" id="sessionTimeLeft">--:--</span>
+                    <button class="btn-lock-small" data-click="lockWallet()" title="Bloquear ahora">🔒</button>
+                </div>
+                <!-- Menú hamburguesa siempre visible -->
+                <button class="menu-btn" data-click="toggleMainMenu()" title="Menú">☰</button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Balance Card -->
+            <section class="balance-card">
+                <div class="balance-header">
+                    <span class="balance-label" data-i18n="totalBalance">Balance Total</span>
+                    <a id="addressLink" href="#" target="_blank" class="address-badge">
+                        <span id="shortAddress">0x...</span>
+                        <span class="explorer-icon">🔗</span>
+                    </a>
+                </div>
+                
+                <div class="balance-amount">
+                    <span id="mainBalance">0.0000</span>
+                    <span class="balance-symbol" id="mainBalanceSymbol">SYS</span>
+                </div>
+
+                <div class="balance-actions">
+                    <button class="action-btn" data-click="openReceiveModal()">
+                        <span class="action-icon">📥</span>
+                        <span data-i18n="receive">Recibir</span>
+                    </button>
+                    <button class="action-btn" data-click="openModal('sendModal')">
+                        <span class="action-icon">📤</span>
+                        <span data-i18n="send">Enviar</span>
+                    </button>
+                    <button class="action-btn" data-click="openModal('addContractModal')">
+                        <span class="action-icon">➕</span>
+                        <span data-i18n="add">Agregar</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Tabs de Activos -->
+            <section class="assets-tabs-section">
+                <div class="assets-tabs">
+                    <button class="assets-tab active" data-tab="tokens" data-click="switchAssetsTab('tokens')">
+                        ERC20 <span id="tokensCount" class="tab-count">0</span>
+                    </button>
+                    <button class="assets-tab" data-tab="nfts" data-click="switchAssetsTab('nfts')">
+                        NFT <span id="nftsCount" class="tab-count">0</span>
+                    </button>
+                    <button class="assets-tab" data-tab="others" data-click="switchAssetsTab('others')">
+                        <span data-i18n="others">Otros</span> <span id="othersCount" class="tab-count">0</span>
+                    </button>
+                    <button class="assets-tab icon-only activity-tab" data-tab="activity" data-click="switchAssetsTab('activity')" title="Actividad">
+                        <span class="activity-spinner"></span>
+                    </button>
+                </div>
+                
+                <!-- Tab Tokens ERC20 -->
+                <div id="tokensTab" class="assets-tab-content active">
+                    <div class="tab-title-row">
+                        <span class="tab-title">🪙 Tokens</span>
+                        <button class="btn-add-inline" data-click="openAddContractWithType('ERC20')">+ <span data-i18n="add">Agregar</span></button>
+                    </div>
+                    <div id="tokensList" class="tokens-list">
+                        <div class="empty-state">
+                            <span class="empty-icon">📭</span>
+                            <p data-i18n="noTokens">No hay tokens</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Tab NFTs ERC721 -->
+                <div id="nftsTab" class="assets-tab-content">
+                    <div class="tab-title-row">
+                        <span class="tab-title">🎨 NFTs</span>
+                        <button class="btn-add-inline" data-click="openAddContractWithType('ERC721')">+ <span data-i18n="add">Agregar</span></button>
+                    </div>
+                    <div id="nftsList" class="nfts-accordion">
+                        <div class="empty-state">
+                            <span class="empty-icon">🖼️</span>
+                            <p data-i18n="noNFTs">No hay NFTs</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Tab Otros Contratos -->
+                <div id="othersTab" class="assets-tab-content">
+                    <div class="tab-title-row">
+                        <span class="tab-title">📄 <span data-i18n="others">Otros</span></span>
+                        <button class="btn-add-inline" data-click="openAddContractWithType('OTHER')">+ <span data-i18n="add">Agregar</span></button>
+                    </div>
+                    <div id="othersList" class="others-list">
+                        <div class="empty-state">
+                            <span class="empty-icon">📄</span>
+                            <p data-i18n="noContracts">No hay contratos</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Tab Actividad -->
+                <div id="activityTab" class="assets-tab-content">
+                    <div class="tab-title-row">
+                        <span class="tab-title">📜 <span data-i18n="activity">Actividad</span></span>
+                        <a id="allActivityLink" href="#" target="_blank" class="btn-add-inline disabled">Ver todo ↗</a>
+                    </div>
+                    <div id="activityList" class="activity-list">
+                        <div class="empty-state">
+                            <span class="empty-icon">📋</span>
+                            <p>Sin actividad reciente</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Wallet creada por <a href="https://0xaddress.com" target="_blank">0xAddress.com</a></p>
+            <span class="version">BETA 0.0.81</span>
+        </footer>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Modal de Confirmación Universal -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content confirm-modal">
+            <div class="confirm-icon" id="confirmIcon">⚠️</div>
+            <h3 id="confirmTitle">¿Estás seguro?</h3>
+            <p id="confirmMessage">Esta acción no se puede deshacer.</p>
+            <div class="confirm-item-preview" id="confirmItemPreview" style="display: none;">
+                <div class="confirm-item-icon" id="confirmItemIcon">TK</div>
+                <div class="confirm-item-info">
+                    <strong id="confirmItemName">Item</strong>
+                    <span id="confirmItemDetail"></span>
+                </div>
+            </div>
+            <div class="confirm-actions">
+                <button class="btn-secondary" data-click="cancelConfirm()" data-i18n="cancel">Cancelar</button>
+                <button class="btn-danger" id="confirmButton" data-click="executeConfirm()">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Ver Frase Semilla -->
+    <div id="mnemonicModal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" data-click="closeMnemonicModal()">&times;</button>
+            
+            <h2>🌱 Frase de Recuperación</h2>
+            
+            <div id="mnemonicPasswordStep">
+                <p class="modal-desc">Ingresa tu contraseña para ver la frase.</p>
+                <div class="input-group">
+                    <input type="password" id="mnemonicPassword" placeholder="Contraseña">
+                </div>
+                <button class="btn-primary btn-full" data-click="revealMnemonic()">
+                    👁️ Revelar Frase
+                </button>
+            </div>
+            
+            <div id="mnemonicDisplayStep" class="hidden">
+                <div class="warning-box danger">
+                    ⚠️ Nunca compartas estas palabras. Quien las tenga controla tus fondos.
+                </div>
+                <div id="mnemonicWords" class="mnemonic-display"></div>
+                <div class="mnemonic-actions">
+                    <button class="btn-secondary" data-click="copyMnemonic()">📋 Copiar</button>
+                    <button class="btn-secondary" data-click="closeMnemonicModal()">🙈 Ocultar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overlay de operación criptográfica -->
+    <div id="cryptoOverlay" class="crypto-overlay hidden">
+        <div class="crypto-spinner-container">
+            <div class="crypto-spinner"></div>
+            <div class="crypto-title" id="cryptoTitle">Procesando...</div>
+            <div class="crypto-message" id="cryptoMessage">Derivando claves con PBKDF2</div>
+            <div class="crypto-progress">
+                <div class="crypto-progress-bar" id="cryptoProgressBar"></div>
+            </div>
+            <div class="crypto-details" id="cryptoDetails">AES-256 • SHA-256</div>
+        </div>
+    </div>
+
+    <!-- Onboarding Tutorial -->
+    <div id="onboardingOverlay" class="onboarding-overlay hidden">
+        <div class="onboarding-backdrop"></div>
+        <div class="onboarding-tooltip" id="onboardingTooltip">
+            <div class="onboarding-step" id="onboardingStep">1/4</div>
+            <div class="onboarding-content" id="onboardingContent"></div>
+            <div class="onboarding-actions">
+                <button class="btn-secondary btn-sm" id="onboardingSkip" data-click="skipOnboarding()">Omitir</button>
+                <button class="btn-primary btn-sm" id="onboardingNext" data-click="nextOnboardingStep()">Siguiente</button>
+            </div>
+        </div>
+        <div class="onboarding-highlight" id="onboardingHighlight"></div>
+    </div>
+
+    <!-- Menú principal desplegable -->
+    <div class="main-menu-overlay" id="mainMenuOverlay" data-click="closeMainMenu()"></div>
+    <div class="main-menu" id="mainMenu">
+        <div class="main-menu-header">
+            <h3 data-i18n="menu">Menú</h3>
+            <button class="main-menu-close" data-click="closeMainMenu()">×</button>
+        </div>
+        <div class="main-menu-items">
+            <div class="main-menu-item" data-click="showSecurityModal(); closeMainMenu();">
+                <span class="menu-icon">🛡️</span>
+                <span data-i18n="security">Seguridad</span>
+            </div>
+            <div class="main-menu-item" data-click="showSettings(); closeMainMenu();">
+                <span class="menu-icon">🌐</span>
+                <span data-i18n="networks">Redes</span>
+            </div>
+            <div class="main-menu-item" data-click="showPreferences(); closeMainMenu();">
+                <span class="menu-icon">⚙️</span>
+                <span data-i18n="preferences">Preferencias</span>
+            </div>
+            <div class="main-menu-item" data-click="refreshAll(); closeMainMenu();">
+                <span class="menu-icon">🔄</span>
+                <span data-i18n="refresh">Actualizar</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- External Libraries (local) -->
+    <script src="lib/ethers.min.js"></script>
+    <script src="lib/qrcode.min.js"></script>
+    <script src="lib/crypto-js.min.js"></script>
+    
+    <!-- App Scripts -->
+    <script src="js/i18n.js"></script>
+    <script src="js/config.js"></script>
+    <script src="abis/erc20.js"></script>
+    <script src="abis/erc721.js"></script>
+    <script src="js/wallet.js"></script>
+    <script src="js/multi-account.js"></script>
+    <script src="js/preferences.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/other-contracts.js"></script>
+    <script src="js/event-handlers.js"></script>
+    <script src="js/popup-bridge.js"></script>
+</body>
+</html>
