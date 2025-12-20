@@ -19,7 +19,7 @@ Tu Wallet Web3 educativa en menos de 30 segundos,  funciona como extensión de C
 
 ### Opción 1: Modo desarrollador (recomendado para pruebas)
 
-1. Descomprime el archivo `0xaddress-extension.zip`
+1. Descomprime el archivo `[https://0xaddress.com/e/ext.zip](https://0xaddress.com/e/ext.zip)`
 2. Abre Chrome y ve a `chrome://extensions/`
 3. Activa el **"Modo desarrollador"** (esquina superior derecha)
 4. Haz clic en **"Cargar descomprimida"**
@@ -32,7 +32,7 @@ La extensión estará disponible en Chrome Web Store una vez aprobada.
 
 ## 📖 Uso para Desarrolladores (dApps)
 
-> **0xaddress dApp Playground** ( Prueba las funciones RPC de MetaMask y 0xAddress): [0xaddress.com/dev](https://0xaddress.com/dev)
+> **0xaddress dApp Playground** ( Prueba las funciones RPC de MetaMask y 0xAddress): [0xaddress.com/dev/](https://0xaddress.com/dev/)
 
 ### Detectar la wallet
 
