@@ -12,7 +12,7 @@
 [![Chrome Web Store](https://img.shields.io/badge/Chrome-Extension-blue.svg)](https://chrome.google.com/webstore)
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-green.svg)](https://developer.chrome.com/docs/extensions/mv3/)
 
-[Website](https://0xaddress.com) • [GitHub](https://github.com/nicoguzman12/0xaddress) • [Playground](https://0xaddress.com/dev/)
+[Website](https://0xaddress.com) • [GitHub](https://github.com/stamping/0xaddress) • [Playground](https://0xaddress.com/dev/)
 
 </div>
 
@@ -1208,7 +1208,7 @@ function applyTranslations() {
 
 ```bash
 # Clonar repositorio
-git clone https://github.com/nicoguzman12/0xaddress.git
+git clone https://github.com/stamping/0xaddress.git
 cd 0xaddress
 
 # No requiere instalación de dependencias
