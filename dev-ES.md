@@ -1607,7 +1607,7 @@ chrome.storage.local.clear();
 
 Documentación Técnica v1.0
 
-[Website](https://0xaddress.com) • [GitHub](https://github.com/nicoguzman12/0xaddress) • [Playground](https://0xaddress.com/dev/)
+[Website](https://0xaddress.com) • [GitHub](https://github.com/stamping/0xaddress) • [Playground](https://0xaddress.com/dev/)
 
 © 2025 Stamping.io - MIT License
 
