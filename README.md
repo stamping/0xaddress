@@ -3,7 +3,6 @@
 Tu Wallet Web3 educativa en menos de 30 segundos,  funciona como extensión de Chrome, similar a MetaMask. 
 
 0xAddress es una wallet compatible con Ethereum (EVM) completamente open source. No confíes tus llaves privadas a terceros. Crea la tuya, personalízala y mantén el control total.
-
 > ¿Tu primera wallet fue para "practicar"? — Miles de usuarios crean su primera wallet en MetaMask, guardan la seed phrase en un .txt o screenshot, y años después esa misma wallet tiene fondos reales. El problema: esas 12 palabras ya están comprometidas. Con 0xAddress aprendes sin ese riesgo.
 
 ## ✨ Características
