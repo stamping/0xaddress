@@ -1591,7 +1591,7 @@ chrome.storage.local.clear();
 
 ### C. Changelog
 
-#### v1.0.0 (2024)
+#### v1.0.0 (Dic, 2025)
 - Lanzamiento inicial
 - Soporte para 20+ redes EVM
 - Firma personal_sign y EIP-712
@@ -1609,6 +1609,6 @@ Documentación Técnica v1.0
 
 [Website](https://0xaddress.com) • [GitHub](https://github.com/nicoguzman12/0xaddress) • [Playground](https://0xaddress.com/dev/)
 
-© 2024 Stamping.io - MIT License
+© 2025 Stamping.io - MIT License
 
 </div>
