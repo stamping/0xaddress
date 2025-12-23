@@ -313,9 +313,10 @@ function getPendingRequests() {
 // Manejo de RPC
 // ========================================
 async function handleRpcRequest(payload, sender) {
-  const { method, params, origin, favicon, title } = payload;
+  const { id: inpageRequestId, method, params, origin, favicon, title } = payload;
+  const tabId = sender?.tab?.id;
 
-  console.log('🔗 RPC:', method, 'from', origin);
+  console.log('🔗 RPC:', method, 'from', origin, 'tabId:', tabId, 'inpageId:', inpageRequestId);
 
   const publicMethods = [
     'eth_chainId', 'net_version', 'eth_blockNumber',
@@ -349,32 +350,19 @@ async function handleRpcRequest(payload, sender) {
       );
       
       if (existingRequest) {
-        // Ya hay una solicitud pendiente para este origen, esperar a que se resuelva
         console.log('⏳ eth_requestAccounts already pending for:', origin);
-        return new Promise((resolve, reject) => {
-          // Añadir callbacks adicionales a la solicitud existente
-          const originalResolve = existingRequest.resolve;
-          const originalReject = existingRequest.reject;
-          
-          existingRequest.resolve = (result) => {
-            originalResolve(result);
-            resolve(result);
-          };
-          existingRequest.reject = (error) => {
-            originalReject(error);
-            reject(error);
-          };
-        });
+        // Devolver pending para esta también
+        return { pending: true };
       }
       
-      return createPendingRequest({ method, params, origin, favicon, title });
+      return createPendingRequest({ method, params, origin, favicon, title }, tabId, inpageRequestId);
     }
 
     if (['personal_sign', 'eth_sign', 'eth_signTypedData', 'eth_signTypedData_v4', 'eth_sendTransaction'].includes(method)) {
       if (!walletState.connectedSites[origin]) {
         return { error: { code: 4100, message: 'Not connected. Call eth_requestAccounts first.' } };
       }
-      return createPendingRequest({ method, params, origin, favicon, title });
+      return createPendingRequest({ method, params, origin, favicon, title }, tabId, inpageRequestId);
     }
 
     if (method === 'wallet_switchEthereumChain') {
@@ -409,7 +397,7 @@ async function handleRpcRequest(payload, sender) {
           networkId: networkId,
           name: getNetworkName(networkId) || `Chain ${chainIdDecimal}`
         }
-      });
+      }, tabId, inpageRequestId);
     }
 
     if (method === 'wallet_addEthereumChain') {
@@ -453,7 +441,7 @@ async function handleRpcRequest(payload, sender) {
           isExisting: !!existingNetworkId,
           existingNetworkId: existingNetworkId
         }
-      });
+      }, tabId, inpageRequestId);
     }
 
     return { error: { code: -32601, message: `Method not supported: ${method}` } };
@@ -492,23 +480,24 @@ async function handlePublicMethod(method, params) {
 // ========================================
 // Solicitudes Pendientes
 // ========================================
-function createPendingRequest(request) {
-  return new Promise((resolve, reject) => {
-    const reqId = `req_${++requestCounter}_${Date.now()}`;
-    
-    pendingRequests.set(reqId, {
-      ...request,
-      timestamp: Date.now(),
-      resolve,
-      reject
-    });
-
-    console.log('📋 Pending request:', reqId, request.method);
-    console.log('📋 Total pending:', pendingRequests.size);
-
-    // Abrir popup automáticamente
-    openPopupForApproval();
+function createPendingRequest(request, tabId, inpageRequestId) {
+  const reqId = `req_${++requestCounter}_${Date.now()}`;
+  
+  pendingRequests.set(reqId, {
+    ...request,
+    timestamp: Date.now(),
+    tabId: tabId,
+    inpageRequestId: inpageRequestId
   });
+
+  console.log('📋 Pending request:', reqId, request.method, 'tabId:', tabId, 'inpageId:', inpageRequestId);
+  console.log('📋 Total pending:', pendingRequests.size);
+
+  // Abrir popup automáticamente
+  openPopupForApproval();
+  
+  // Devolver un objeto especial que indica "pendiente"
+  return { pending: true, requestId: reqId };
 }
 
 async function openPopupForApproval() {
@@ -584,6 +573,7 @@ function getActionName(method) {
 
 async function approveRequest(payload) {
   const { requestId, result } = payload;
+  
   const request = pendingRequests.get(requestId);
   
   if (!request) {
@@ -592,6 +582,9 @@ async function approveRequest(payload) {
   }
 
   console.log('✅ Approving:', requestId, request.method);
+
+  let responseResult = null;
+  let responseError = null;
 
   try {
     if (request.method === 'eth_requestAccounts') {
@@ -603,7 +596,7 @@ async function approveRequest(payload) {
       await chrome.storage.local.set({ 
         '0xaddress_connected_sites': walletState.connectedSites 
       });
-      request.resolve({ result: [walletState.address] });
+      responseResult = [walletState.address];
     } else if (request.method === 'wallet_switchEthereumChain') {
       // Cambiar de red
       const networkParams = request.networkParams;
@@ -628,7 +621,7 @@ async function approveRequest(payload) {
         console.error('❌ Missing networkParams for switch');
       }
       
-      request.resolve({ result: null });
+      responseResult = null;
     } else if (request.method === 'wallet_addEthereumChain') {
       const networkParams = request.networkParams;
       if (networkParams) {
@@ -666,12 +659,29 @@ async function approveRequest(payload) {
         
         broadcastEvent('chainChanged', networkParams.chainIdHex);
       }
-      request.resolve({ result: null });
+      responseResult = null;
     } else {
-      request.resolve({ result });
+      responseResult = result;
     }
   } catch (error) {
-    request.reject({ code: -32603, message: error.message });
+    console.error('❌ Error in approveRequest:', error);
+    responseError = { code: -32603, message: error.message };
+  }
+
+  // Enviar respuesta al content-script de la tab
+  if (request.tabId && request.inpageRequestId !== undefined) {
+    try {
+      await chrome.tabs.sendMessage(request.tabId, {
+        type: 'OXADDRESS_ASYNC_RESPONSE',
+        payload: {
+          id: request.inpageRequestId,
+          result: responseResult,
+          error: responseError
+        }
+      });
+    } catch (e) {
+      console.error('❌ Failed to send async response:', e);
+    }
   }
 
   pendingRequests.delete(requestId);
@@ -687,13 +697,29 @@ async function getCustomNetworks() {
   return data['0xaddress_custom_networks'] || {};
 }
 
-function rejectRequest(payload) {
+async function rejectRequest(payload) {
   const { requestId } = payload;
   const request = pendingRequests.get(requestId);
   
   if (request) {
     console.log('❌ Rejecting:', requestId);
-    request.reject({ code: 4001, message: 'User rejected the request' });
+    
+    // Enviar respuesta de error al content-script de la tab
+    if (request.tabId && request.inpageRequestId !== undefined) {
+      try {
+        await chrome.tabs.sendMessage(request.tabId, {
+          type: 'OXADDRESS_ASYNC_RESPONSE',
+          payload: {
+            id: request.inpageRequestId,
+            result: null,
+            error: { code: 4001, message: 'User rejected the request' }
+          }
+        });
+      } catch (e) {
+        console.error('❌ Failed to send rejection:', e);
+      }
+    }
+    
     pendingRequests.delete(requestId);
   }
   
