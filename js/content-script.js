@@ -6,6 +6,9 @@
 (() => {
   'use strict';
 
+  // Mapa de solicitudes pendientes
+  const pendingRequests = new Map();
+
   // ========================================
   // Inyectar el provider en la página
   // ========================================
@@ -37,41 +40,75 @@
     switch (type) {
       case 'OXADDRESS_INIT':
         // Solicitar estado actual al background
-        const state = await chrome.runtime.sendMessage({ type: 'GET_STATE' });
-        sendToPage('OXADDRESS_STATE', state);
+        try {
+          const state = await chrome.runtime.sendMessage({ type: 'GET_STATE' });
+          sendToPage('OXADDRESS_STATE', state);
+        } catch (e) {
+          console.warn('0xAddress: Could not get state:', e);
+        }
         break;
 
       case 'OXADDRESS_REQUEST':
-        try {
-          // Agregar info de la página para contexto
-          const requestPayload = {
-            ...payload,
-            origin: window.location.origin,
-            favicon: getFavicon(),
-            title: document.title
-          };
-          
-          const response = await chrome.runtime.sendMessage({
-            type: 'RPC_REQUEST',
-            payload: requestPayload
-          });
-          
-          sendToPage('OXADDRESS_RESPONSE', {
-            id: payload.id,
-            result: response.result,
-            error: response.error
-          });
-        } catch (error) {
-          sendToPage('OXADDRESS_RESPONSE', {
-            id: payload.id,
-            error: { code: 4001, message: error.message }
-          });
-        }
+        handleRpcRequest(payload);
         break;
     }
   });
 
-  // Escuchar mensajes del background (eventos)
+  async function handleRpcRequest(payload) {
+    const { id, method } = payload;
+    
+    // Guardar la solicitud pendiente
+    pendingRequests.set(id, { method, timestamp: Date.now() });
+    
+    try {
+      // Agregar info de la página para contexto
+      const requestPayload = {
+        ...payload,
+        origin: window.location.origin,
+        favicon: getFavicon(),
+        title: document.title
+      };
+      
+      // Enviar al background y esperar respuesta
+      const response = await chrome.runtime.sendMessage({
+        type: 'RPC_REQUEST',
+        payload: requestPayload
+      });
+      
+      // Si la respuesta es "pending", esperar respuesta asíncrona
+      if (response && response.pending) {
+        // La respuesta llegará por OXADDRESS_ASYNC_RESPONSE
+        return;
+      }
+      
+      // Limpiar solicitud pendiente
+      pendingRequests.delete(id);
+      
+      // Enviar respuesta a la página
+      if (response) {
+        sendToPage('OXADDRESS_RESPONSE', {
+          id: id,
+          result: response.result,
+          error: response.error
+        });
+      }
+    } catch (error) {
+      // Si el error es por canal cerrado, la respuesta vendrá por mensaje
+      if (error.message && error.message.includes('message channel closed')) {
+        // La respuesta vendrá por OXADDRESS_ASYNC_RESPONSE
+        return;
+      }
+      
+      // Otro tipo de error
+      pendingRequests.delete(id);
+      sendToPage('OXADDRESS_RESPONSE', {
+        id: id,
+        error: { code: -32603, message: error.message || 'Internal error' }
+      });
+    }
+  }
+
+  // Escuchar mensajes del background (eventos y respuestas asíncronas)
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'OXADDRESS_EVENT') {
       sendToPage('OXADDRESS_EVENT', message.payload);
@@ -81,6 +118,14 @@
       sendToPage('OXADDRESS_STATE', message.payload);
     }
     
+    // Respuesta asíncrona para solicitudes que requieren aprobación
+    if (message.type === 'OXADDRESS_ASYNC_RESPONSE') {
+      const { id, result, error } = message.payload;
+      pendingRequests.delete(id);
+      sendToPage('OXADDRESS_RESPONSE', { id, result, error });
+    }
+    
+    sendResponse({ received: true });
     return true;
   });
 
