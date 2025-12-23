@@ -27,6 +27,42 @@
   injectScript();
 
   // ========================================
+  // Función para enviar mensajes con reconexión
+  // ========================================
+  async function sendMessageSafe(message) {
+    try {
+      // Verificar si chrome.runtime está disponible
+      if (!chrome.runtime || !chrome.runtime.sendMessage) {
+        throw new Error('Extension context invalidated');
+      }
+      
+      const response = await chrome.runtime.sendMessage(message);
+      
+      // Verificar si hubo error de conexión
+      if (chrome.runtime.lastError) {
+        throw new Error(chrome.runtime.lastError.message);
+      }
+      
+      return response;
+    } catch (error) {
+      // Si el contexto de la extensión fue invalidado, notificar al usuario
+      if (error.message.includes('Extension context invalidated') ||
+          error.message.includes('Cannot read properties of undefined') ||
+          error.message.includes('Receiving end does not exist')) {
+        
+        // Notificar a la página que necesita reconectar
+        sendToPage('OXADDRESS_DISCONNECTED', { 
+          reason: 'extension_context_invalidated',
+          message: 'Please refresh the page to reconnect'
+        });
+        
+        throw new Error('Extension disconnected. Please refresh the page.');
+      }
+      throw error;
+    }
+  }
+
+  // ========================================
   // Comunicación: Página <-> Content <-> Background
   // ========================================
   
@@ -41,10 +77,17 @@
       case 'OXADDRESS_INIT':
         // Solicitar estado actual al background
         try {
-          const state = await chrome.runtime.sendMessage({ type: 'GET_STATE' });
+          const state = await sendMessageSafe({ type: 'GET_STATE' });
           sendToPage('OXADDRESS_STATE', state);
         } catch (e) {
-          console.warn('0xAddress: Could not get state:', e);
+          console.warn('0xAddress: Could not get state:', e.message);
+          // Enviar estado desconectado
+          sendToPage('OXADDRESS_STATE', { 
+            isLocked: true, 
+            address: null, 
+            chainId: null,
+            disconnected: true 
+          });
         }
         break;
 
@@ -70,7 +113,7 @@
       };
       
       // Enviar al background y esperar respuesta
-      const response = await chrome.runtime.sendMessage({
+      const response = await sendMessageSafe({
         type: 'RPC_REQUEST',
         payload: requestPayload
       });

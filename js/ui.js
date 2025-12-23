@@ -194,8 +194,21 @@ function closeAllModals() {
 // Toast Notifications
 // ========================================
 
+// Control de notificaciones duplicadas
+let lastToastMessage = { text: '', timestamp: 0 };
+const TOAST_DEBOUNCE_MS = 2000;
+
 function showToast(type, title, message, duration = 5000) {
     const container = document.getElementById('toastContainer');
+    
+    // Evitar duplicados en corto tiempo
+    const fullMessage = `${title}:${message}`;
+    const now = Date.now();
+    if (fullMessage === lastToastMessage.text && 
+        (now - lastToastMessage.timestamp) < TOAST_DEBOUNCE_MS) {
+        return;
+    }
+    lastToastMessage = { text: fullMessage, timestamp: now };
     
     const icons = {
         success: '✅',
@@ -2985,3 +2998,347 @@ function toggleExportPasswordFields() {
         }
     }
 }
+
+// ========================================
+// Connected Sites Management
+// ========================================
+
+let currentPageOrigin = null;
+let currentPageTitle = null;
+let currentPageFavicon = null;
+
+// Actualizar estado del icono de conexión
+async function updateDappConnectionStatus() {
+    const iconContainer = document.getElementById('dappConnectionBtn');
+    if (!iconContainer) return;
+    
+    try {
+        // Obtener tab actual
+        if (typeof chrome !== 'undefined' && chrome.tabs) {
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tabs[0] && tabs[0].url) {
+                try {
+                    const url = new URL(tabs[0].url);
+                    currentPageOrigin = url.origin;
+                    currentPageTitle = tabs[0].title || url.hostname;
+                    currentPageFavicon = tabs[0].favIconUrl || null;
+                    
+                    // Verificar si está conectado
+                    const connectedSites = await getConnectedSites();
+                    if (connectedSites[currentPageOrigin]) {
+                        iconContainer.classList.add('connected');
+                        iconContainer.title = `Conectado a ${url.hostname}`;
+                    } else {
+                        iconContainer.classList.remove('connected');
+                        iconContainer.title = 'Sitios conectados';
+                    }
+                } catch (e) {
+                    // URL inválida (chrome://, about:, etc.)
+                    currentPageOrigin = null;
+                    iconContainer.classList.remove('connected');
+                }
+            }
+        }
+    } catch (e) {
+        console.log('Could not get tab info:', e);
+    }
+}
+
+// Obtener sitios conectados
+async function getConnectedSites() {
+    try {
+        if (typeof chrome !== 'undefined' && chrome.storage) {
+            const data = await chrome.storage.local.get('0xaddress_connected_sites');
+            return data['0xaddress_connected_sites'] || {};
+        }
+    } catch (e) {}
+    return {};
+}
+
+// Generar favicon HTML con fallback simple (sin inline handlers por CSP)
+function getFaviconHtml(faviconUrl, title) {
+    // Si no hay URL, mostrar icono genérico directamente
+    if (!faviconUrl || faviconUrl === '' || faviconUrl === 'undefined' || faviconUrl === 'null') {
+        return `<div class="favicon-placeholder">🌐</div>`;
+    }
+    
+    // Imagen sin handlers inline - el fallback siempre visible inicialmente
+    return `<img src="${faviconUrl}" alt="" class="favicon-img" style="display:none;width:100%;height:100%;object-fit:contain;border-radius:6px;"><div class="favicon-placeholder">🌐</div>`;
+}
+
+// Función para manejar errores de favicon después de cargar (sin inline JS)
+function setupFaviconFallbacks() {
+    document.querySelectorAll('.favicon-img').forEach(img => {
+        if (img.dataset.handlerSet) return;
+        img.dataset.handlerSet = 'true';
+        
+        const fallback = img.nextElementSibling;
+        
+        img.onload = function() {
+            this.style.display = 'block';
+            if (fallback) fallback.style.display = 'none';
+        };
+        
+        img.onerror = function() {
+            this.style.display = 'none';
+            if (fallback) fallback.style.display = 'flex';
+        };
+        
+        // Si la imagen ya está cacheada, verificar estado
+        if (img.complete) {
+            if (img.naturalWidth > 0) {
+                img.style.display = 'block';
+                if (fallback) fallback.style.display = 'none';
+            }
+        }
+    });
+}
+
+// Mostrar modal de sitios conectados
+async function showConnectedSites() {
+    const modal = document.getElementById('connectedSitesModal');
+    if (!modal) return;
+    
+    const connectedSites = await getConnectedSites();
+    const statusContainer = document.getElementById('currentSiteStatus');
+    const sitesList = document.getElementById('connectedSitesList');
+    const allSitesSection = document.getElementById('allSitesSection');
+    const disconnectAllBtn = document.getElementById('disconnectAllBtn');
+    const sitesCount = document.getElementById('sitesCount');
+    const viewAllBtn = document.getElementById('viewAllSitesBtn');
+    
+    const sites = Object.entries(connectedSites);
+    const siteCount = sites.length;
+    sitesCount.textContent = `(${siteCount})`;
+    
+    // Determinar si el sitio actual está conectado
+    const isCurrentSiteConnected = currentPageOrigin && connectedSites[currentPageOrigin];
+    const currentSiteData = isCurrentSiteConnected ? connectedSites[currentPageOrigin] : null;
+    
+    // Mostrar estado del sitio actual - Layout mejorado con badge y botón separados
+    if (currentPageOrigin) {
+        if (isCurrentSiteConnected) {
+            // Sitio conectado - Layout vertical para badge y botón
+            statusContainer.innerHTML = `
+                <div class="site-status-card connected">
+                    <div class="site-status-main">
+                        <div class="site-status-icon">
+                            ${getFaviconHtml(currentSiteData.favicon || currentPageFavicon, currentPageTitle)}
+                        </div>
+                        <div class="site-status-info">
+                            <div class="site-status-title">${currentSiteData.name || currentPageTitle}</div>
+                            <div class="site-status-subtitle">${currentPageOrigin}</div>
+                        </div>
+                    </div>
+                    <div class="site-status-actions">
+                        <span class="site-status-badge connected">Conectado</span>
+                        <button class="btn-disconnect-inline" data-click="disconnectCurrentSite()">
+                            🔌 Desconectar
+                        </button>
+                    </div>
+                </div>
+            `;
+            // Re-procesar handlers
+            if (typeof processHandlers === 'function') {
+                processHandlers(statusContainer);
+            } else {
+                // Fallback: agregar event listener manualmente
+                const disconnectBtn = statusContainer.querySelector('.btn-disconnect-inline');
+                if (disconnectBtn) {
+                    disconnectBtn.addEventListener('click', disconnectCurrentSite);
+                }
+            }
+        } else {
+            // Sitio no conectado
+            let hostname = '';
+            try {
+                hostname = new URL(currentPageOrigin).hostname;
+            } catch(e) {
+                hostname = currentPageOrigin;
+            }
+            statusContainer.innerHTML = `
+                <div class="site-status-card not-connected">
+                    <div class="site-status-main">
+                        <div class="site-status-icon">
+                            ${getFaviconHtml(currentPageFavicon, currentPageTitle)}
+                        </div>
+                        <div class="site-status-info">
+                            <div class="site-status-title">${hostname}</div>
+                            <div class="site-status-subtitle">Este sitio no está conectado</div>
+                        </div>
+                    </div>
+                    <span class="site-status-badge not-connected">No conectado</span>
+                </div>
+            `;
+        }
+    } else {
+        statusContainer.innerHTML = `
+            <div class="site-status-card not-connected">
+                <div class="site-status-main">
+                    <div class="site-status-icon">🌐</div>
+                    <div class="site-status-info">
+                        <div class="site-status-title">Sin sitio activo</div>
+                        <div class="site-status-subtitle">Abre una dApp para conectarte</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Mostrar sección de historial si hay sitios conectados
+    const totalConnectedSites = siteCount;
+    
+    if (totalConnectedSites > 0) {
+        // Ocultar botón "Ver todos" - solo usamos el acordeón
+        if (viewAllBtn) {
+            viewAllBtn.style.display = 'none';
+        }
+        
+        // Ocultar "Desconectar todos"
+        disconnectAllBtn.style.display = 'none';
+        
+        // Limpiar y llenar lista con TODOS los sitios
+        sitesList.innerHTML = '';
+        
+        sites.forEach(([origin, data]) => {
+            const isCurrentSite = origin === currentPageOrigin;
+            const card = document.createElement('div');
+            card.className = 'connected-site-card' + (isCurrentSite ? ' current' : '');
+            card.innerHTML = `
+                <div class="site-info">
+                    <div class="site-favicon">
+                        ${getFaviconHtml(data.favicon, data.name || origin)}
+                    </div>
+                    <div class="site-details">
+                        <span class="site-title">${data.name || origin}${isCurrentSite ? ' <span class="current-badge">actual</span>' : ''}</span>
+                        <span class="site-origin">${origin}</span>
+                    </div>
+                </div>
+                <button class="btn-disconnect-small" data-origin="${origin}" title="Desconectar">
+                    ✕
+                </button>
+            `;
+            
+            // Event listener para desconectar
+            card.querySelector('.btn-disconnect-small').addEventListener('click', (e) => {
+                const siteOrigin = e.currentTarget.dataset.origin;
+                disconnectSite(siteOrigin);
+            });
+            
+            sitesList.appendChild(card);
+        });
+        
+        // Mostrar sección de historial
+        allSitesSection.style.display = 'block';
+        allSitesSection.classList.remove('open');
+    } else {
+        allSitesSection.style.display = 'none';
+        if (viewAllBtn) viewAllBtn.style.display = 'none';
+        disconnectAllBtn.style.display = 'none';
+    }
+    
+    openModal('connectedSitesModal');
+    
+    // Configurar fallbacks de favicon después de un pequeño delay
+    setTimeout(setupFaviconFallbacks, 100);
+}
+
+// Toggle para ver todos los sitios
+function toggleAllSitesView() {
+    const section = document.getElementById('allSitesSection');
+    const btn = document.getElementById('viewAllSitesBtn');
+    if (section) {
+        section.classList.toggle('open');
+        if (btn) {
+            btn.textContent = section.classList.contains('open') ? 'Ocultar' : `Ver todos (${document.querySelectorAll('.connected-site-card').length})`;
+        }
+    }
+}
+
+// Desconectar sitio específico
+async function disconnectSite(origin) {
+    try {
+        const connectedSites = await getConnectedSites();
+        delete connectedSites[origin];
+        
+        if (typeof chrome !== 'undefined' && chrome.storage) {
+            await chrome.storage.local.set({ '0xaddress_connected_sites': connectedSites });
+            
+            // Notificar al sitio web que fue desconectado
+            try {
+                const tabs = await chrome.tabs.query({});
+                for (const tab of tabs) {
+                    if (tab.url && tab.url.startsWith(origin)) {
+                        chrome.tabs.sendMessage(tab.id, {
+                            type: 'OXADDRESS_EVENT',
+                            payload: { event: 'accountsChanged', data: [] }
+                        }).catch(() => {});
+                        chrome.tabs.sendMessage(tab.id, {
+                            type: 'OXADDRESS_EVENT',
+                            payload: { event: 'disconnect', data: { code: 4900, message: 'Disconnected by user' } }
+                        }).catch(() => {});
+                    }
+                }
+            } catch (e) {}
+        }
+        
+        showToast('success', t('disconnected') || 'Desconectado', origin);
+        
+        // Actualizar UI
+        updateDappConnectionStatus();
+        showConnectedSites(); // Refrescar modal
+        
+    } catch (e) {
+        console.error('Error disconnecting site:', e);
+    }
+}
+
+// Desconectar sitio actual
+function disconnectCurrentSite() {
+    if (currentPageOrigin) {
+        disconnectSite(currentPageOrigin);
+    }
+}
+
+// Desconectar todos los sitios
+async function disconnectAllSites() {
+    const confirmed = confirm(t('confirmDisconnectAll') || '¿Desconectar todos los sitios?');
+    if (!confirmed) return;
+    
+    try {
+        const connectedSites = await getConnectedSites();
+        
+        if (typeof chrome !== 'undefined' && chrome.storage) {
+            // Notificar a todos los sitios
+            try {
+                const tabs = await chrome.tabs.query({});
+                for (const [origin] of Object.entries(connectedSites)) {
+                    for (const tab of tabs) {
+                        if (tab.url && tab.url.startsWith(origin)) {
+                            chrome.tabs.sendMessage(tab.id, {
+                                type: 'OXADDRESS_EVENT',
+                                payload: { event: 'accountsChanged', data: [] }
+                            }).catch(() => {});
+                        }
+                    }
+                }
+            } catch (e) {}
+            
+            await chrome.storage.local.set({ '0xaddress_connected_sites': {} });
+        }
+        
+        showToast('success', t('allDisconnected') || 'Todos desconectados');
+        
+        // Actualizar UI
+        updateDappConnectionStatus();
+        closeModal('connectedSitesModal');
+        
+    } catch (e) {
+        console.error('Error disconnecting all sites:', e);
+    }
+}
+
+// Inicializar estado de conexión al cargar
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(updateDappConnectionStatus, 500);
+});

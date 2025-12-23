@@ -241,14 +241,21 @@
         modal.id = 'oxApprovalOverlay';
         modal.className = isDark ? 'ox-dark' : 'ox-light';
         
+        // Función para generar el favicon con fallback simple
+        const getFaviconElement = (favicon) => {
+            if (!favicon || favicon === '' || favicon === 'undefined' || favicon === 'null') {
+                return `<div class="ox-site-icon-fallback">🌐</div>`;
+            }
+            // Imagen sin handlers inline - se configuran después con JS
+            return `<img src="${favicon}" class="ox-site-icon ox-favicon-check" style="display:none;"><div class="ox-site-icon-fallback">🌐</div>`;
+        };
+        
         modal.innerHTML = `
             <div class="ox-modal">
                 <!-- Header - Compact layout -->
                 <div class="ox-modal-header">
                     <div class="ox-site-info">
-                        <img src="${request.favicon || 'icons/icon48.png'}" 
-                             class="ox-site-icon"
-                             id="oxSiteIcon">
+                        ${getFaviconElement(request.favicon)}
                         <div class="ox-site-details">
                             <div class="ox-site-name">${escapeHtml(request.title || 'Aplicación')}</div>
                             <div class="ox-site-origin">${escapeHtml(request.origin)}</div>
@@ -289,15 +296,40 @@
         document.getElementById('oxRejectBtn').onclick = () => rejectRequest(request);
         document.getElementById('oxApproveBtn').onclick = () => handleApprove(request);
 
-        // Image fallback
-        const siteIcon = document.getElementById('oxSiteIcon');
-        if (siteIcon) {
-            siteIcon.onerror = () => { siteIcon.src = 'icons/icon48.png'; };
-        }
+        // Configurar favicons sin inline handlers
+        setupFaviconHandlers();
 
         // Animación
         requestAnimationFrame(() => {
             modal.classList.add('ox-visible');
+        });
+    }
+
+    // Función para configurar handlers de favicon sin usar inline JS
+    function setupFaviconHandlers() {
+        document.querySelectorAll('.ox-favicon-check').forEach(img => {
+            const fallback = img.nextElementSibling;
+            
+            img.onload = function() {
+                this.style.display = 'block';
+                if (fallback) fallback.style.display = 'none';
+            };
+            
+            img.onerror = function() {
+                this.style.display = 'none';
+                if (fallback) fallback.style.display = 'flex';
+            };
+            
+            // Si la imagen ya está cacheada, verificar estado
+            if (img.complete) {
+                if (img.naturalWidth > 0) {
+                    img.style.display = 'block';
+                    if (fallback) fallback.style.display = 'none';
+                } else {
+                    img.style.display = 'none';
+                    if (fallback) fallback.style.display = 'flex';
+                }
+            }
         });
     }
 
@@ -987,7 +1019,37 @@
         pendingRequestsQueue.shift();
         isShowingRequest = false;
         
-        setTimeout(showNextRequest, 300);
+        // Si no hay más solicitudes, mostrar pantalla de cierre
+        if (pendingRequestsQueue.length === 0) {
+            showClosingScreen();
+        } else {
+            setTimeout(showNextRequest, 300);
+        }
+    }
+
+    function showClosingScreen() {
+        // Crear pantalla de cierre con logo
+        const closingScreen = document.createElement('div');
+        closingScreen.id = 'oxClosingScreen';
+        closingScreen.innerHTML = `
+            <div class="ox-closing-content">
+                <div class="ox-closing-logo">
+                    <span class="ox-logo-hex">0x</span><span class="ox-logo-text">address</span>
+                </div>
+                <div class="ox-closing-message">✓</div>
+            </div>
+        `;
+        document.body.appendChild(closingScreen);
+        
+        // Mostrar con animación
+        requestAnimationFrame(() => {
+            closingScreen.classList.add('ox-visible');
+        });
+        
+        // Cerrar después de un momento
+        setTimeout(() => {
+            window.close();
+        }, 800);
     }
 
     function setButtonLoading(id, loading) {
@@ -1051,7 +1113,34 @@
         }
     }
 
+    // Control de notificaciones duplicadas
+    let lastNotification = { message: '', timestamp: 0 };
+    const NOTIFICATION_DEBOUNCE_MS = 2000; // 2 segundos entre notificaciones iguales
+    
     function showNotification(type, message) {
+        // Verificar si las notificaciones están habilitadas
+        try {
+            const prefs = JSON.parse(localStorage.getItem('0xaddress_preferences') || '{}');
+            if (prefs.showNotifications === false) {
+                console.log('Notification suppressed:', type, message);
+                return;
+            }
+        } catch (e) {}
+        
+        // Evitar notificaciones duplicadas en corto tiempo
+        const now = Date.now();
+        if (message === lastNotification.message && 
+            (now - lastNotification.timestamp) < NOTIFICATION_DEBOUNCE_MS) {
+            console.log('Duplicate notification suppressed:', message);
+            return;
+        }
+        lastNotification = { message, timestamp: now };
+        
+        // Remover notificaciones anteriores del mismo tipo
+        document.querySelectorAll(`.ox-toast-${type}`).forEach(toast => {
+            toast.remove();
+        });
+        
         // Usar el toast de 0xAddress si existe
         if (typeof showToast === 'function') {
             showToast(type, type === 'success' ? '✓' : type === 'error' ? '✗' : 'ℹ', message);
@@ -1174,6 +1263,25 @@
                 border-radius: 10px;
                 background: white;
                 padding: 2px;
+                object-fit: contain;
+            }
+
+            .ox-site-icon-fallback {
+                width: 40px;
+                height: 40px;
+                border-radius: 10px;
+                background: white;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                overflow: hidden;
+                padding: 2px;
+            }
+
+            .ox-site-icon-fallback svg {
+                width: 100%;
+                height: 100%;
+                border-radius: 8px;
             }
 
             .ox-site-name {
@@ -1719,6 +1827,57 @@
                 color: rgba(255, 255, 255, 0.8);
                 margin-bottom: 20px;
                 transition: opacity 0.15s;
+            }
+
+            /* Closing Screen */
+            #oxClosingScreen {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 100%);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10002;
+                opacity: 0;
+                transition: opacity 0.3s ease;
+            }
+
+            #oxClosingScreen.ox-visible {
+                opacity: 1;
+            }
+
+            .ox-closing-content {
+                text-align: center;
+            }
+
+            .ox-closing-logo {
+                font-size: 32px;
+                font-weight: 700;
+                margin-bottom: 20px;
+            }
+
+            .ox-logo-hex {
+                color: #8b5cf6;
+            }
+
+            .ox-logo-text {
+                color: white;
+            }
+
+            .ox-closing-message {
+                font-size: 48px;
+                color: #10b981;
+                animation: ox-pulse 0.5s ease;
+            }
+
+            @keyframes ox-pulse {
+                0% { transform: scale(0); opacity: 0; }
+                50% { transform: scale(1.2); }
+                100% { transform: scale(1); opacity: 1; }
+            }
             }
 
             .ox-processing-bar {

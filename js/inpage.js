@@ -203,7 +203,26 @@
         case 'OXADDRESS_EVENT':
           this._handleEvent(payload);
           break;
+          
+        case 'OXADDRESS_DISCONNECTED':
+          this._handleDisconnect(payload);
+          break;
       }
+    }
+
+    _handleDisconnect(payload) {
+      // Marcar como desconectado
+      this._isConnected = false;
+      this._selectedAddress = null;
+      
+      // Emitir evento de desconexión
+      this.emit('disconnect', { 
+        code: 4900, 
+        message: payload.message || 'Extension disconnected' 
+      });
+      
+      // Emitir cambio de cuentas (array vacío)
+      this.emit('accountsChanged', []);
     }
 
     _handleStateUpdate(state) {
@@ -232,6 +251,8 @@
       const { id, result, error } = payload;
       const pending = this._pendingRequests.get(id);
       
+      // Si no hay solicitud pendiente, ignorar silenciosamente
+      // (puede pasar con respuestas duplicadas del sistema async)
       if (!pending) return;
       
       this._pendingRequests.delete(id);

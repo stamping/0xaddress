@@ -6,6 +6,7 @@
 const DEFAULT_PREFS = {
     darkMode: true,
     eduTips: true,
+    showNotifications: true,  // Nueva preferencia para notificaciones
     unlockIterations: 100000,
     exportIterations: 300000,
     onboardingComplete: false,
@@ -102,7 +103,7 @@ const CryptoOverlay = {
     messageIndex: 0,
     progressInterval: null,
     
-    show(type = 'unlock', title = 'Procesando...') {
+    show(type = 'unlock', title = 'Procesando...', customIterations = null) {
         const overlay = document.getElementById('cryptoOverlay');
         const titleEl = document.getElementById('cryptoTitle');
         const messageEl = document.getElementById('cryptoMessage');
@@ -111,9 +112,14 @@ const CryptoOverlay = {
         
         if (!overlay) return;
         
-        // Obtener iteraciones actuales
-        const prefs = PreferencesManager.load();
-        const iterations = type === 'export' ? prefs.exportIterations : prefs.unlockIterations;
+        // Obtener iteraciones: custom > archivo > preferencias
+        let iterations;
+        if (customIterations) {
+            iterations = customIterations;
+        } else {
+            const prefs = PreferencesManager.load();
+            iterations = type === 'export' ? prefs.exportIterations : prefs.unlockIterations;
+        }
         
         titleEl.textContent = title;
         detailsEl.textContent = `AES-256 • PBKDF2 ${(iterations/1000).toFixed(0)}k • SHA-256`;
@@ -388,11 +394,13 @@ function showPreferences() {
     // Set toggles
     const darkModeToggle = document.getElementById('prefDarkMode');
     const tipsToggle = document.getElementById('prefEduTips');
+    const notificationsToggle = document.getElementById('prefShowNotifications');
     const unlockSelect = document.getElementById('prefUnlockIterations');
     const exportSelect = document.getElementById('prefExportIterations');
     
     if (darkModeToggle) darkModeToggle.checked = prefs.darkMode;
     if (tipsToggle) tipsToggle.checked = prefs.eduTips;
+    if (notificationsToggle) notificationsToggle.checked = prefs.showNotifications !== false;
     if (unlockSelect) unlockSelect.value = prefs.unlockIterations.toString();
     if (exportSelect) exportSelect.value = prefs.exportIterations.toString();
     
@@ -415,7 +423,10 @@ function toggleThemePreference() {
     const checkbox = document.getElementById('prefDarkMode');
     if (checkbox) {
         PreferencesManager.set('darkMode', checkbox.checked);
-        document.body.classList.toggle('dark-mode', checkbox.checked);
+        // Usar el sistema de data-theme del CSS
+        const newTheme = checkbox.checked ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('0xaddress_theme', newTheme);
     }
 }
 
@@ -428,6 +439,13 @@ function toggleTipsPreference() {
         if (tipsSection) {
             tipsSection.style.display = checkbox.checked ? 'block' : 'none';
         }
+    }
+}
+
+function toggleNotificationsPreference() {
+    const checkbox = document.getElementById('prefShowNotifications');
+    if (checkbox) {
+        PreferencesManager.set('showNotifications', checkbox.checked);
     }
 }
 
@@ -613,8 +631,10 @@ function skipOnboarding() {
 function initPreferences() {
     const prefs = PreferencesManager.load();
     
-    // Aplicar tema
-    document.body.classList.toggle('dark-mode', prefs.darkMode);
+    // Aplicar tema usando data-theme
+    const theme = prefs.darkMode ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('0xaddress_theme', theme);
     
     // Aplicar tips (por defecto ON)
     if (prefs.eduTips) {
@@ -630,6 +650,7 @@ window.Onboarding = Onboarding;
 window.showPreferences = showPreferences;
 window.toggleThemePreference = toggleThemePreference;
 window.toggleTipsPreference = toggleTipsPreference;
+window.toggleNotificationsPreference = toggleNotificationsPreference;
 window.applyIterationsChange = applyIterationsChange;
 window.showChangePasswordForm = showChangePasswordForm;
 window.cancelChangePassword = cancelChangePassword;

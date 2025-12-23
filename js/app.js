@@ -517,9 +517,10 @@ async function handleImport(e) {
         }
     }
     
-    // Mostrar spinner de importación
+    // Mostrar spinner de importación con iteraciones del archivo
+    const fileIterations = wallet.getFileIterations(importFileContent);
     if (typeof CryptoOverlay !== 'undefined') {
-        CryptoOverlay.show('import', t('decryptingCertificate'));
+        CryptoOverlay.show('import', t('decryptingCertificate'), fileIterations);
     }
     
     // Esperar para que el overlay se renderice antes del proceso pesado
@@ -655,9 +656,10 @@ async function importFromUnlock() {
         return;
     }
     
-    // Mostrar spinner de importación
+    // Mostrar spinner de importación con iteraciones del archivo
+    const fileIterations2 = wallet.getFileIterations(unlockImportFileContent);
     if (typeof CryptoOverlay !== 'undefined') {
-        CryptoOverlay.show('import', t('decryptingCertificate'));
+        CryptoOverlay.show('import', t('decryptingCertificate'), fileIterations2);
     }
     
     // Esperar para que el overlay se renderice antes del proceso pesado

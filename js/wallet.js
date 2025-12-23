@@ -233,7 +233,23 @@ class Wallet {
         }
     }
     
+    // ========================================
     // PBKDF2 con 300,000 iteraciones para cifrado local
+    // ========================================
+    
+    // Obtener iteraciones de un archivo PEM (sin desencriptar)
+    getFileIterations(fileContent) {
+        try {
+            const data = JSON.parse(fileContent);
+            if (data.encryptedKey && typeof data.encryptedKey === 'object') {
+                return data.encryptedKey.iterations || 300000;
+            }
+            return 300000; // Legacy format default
+        } catch (e) {
+            return 300000;
+        }
+    }
+    
     encryptWithPBKDF2(data, password, iterations = 300000) {
         const salt = CryptoJS.lib.WordArray.random(128 / 8);
         const iv = CryptoJS.lib.WordArray.random(128 / 8);

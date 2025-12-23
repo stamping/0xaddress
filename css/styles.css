@@ -2939,23 +2939,34 @@ input::placeholder {
 }
 
 /* ============================================
-   Scrollbar
+   Scrollbar - Discreto
    ============================================ */
 ::-webkit-scrollbar {
-    width: 8px;
+    width: 4px;
 }
 
 ::-webkit-scrollbar-track {
-    background: var(--bg-dark);
+    background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: var(--border-color);
+    background: rgba(128, 128, 128, 0.3);
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: var(--primary);
+    background: rgba(128, 128, 128, 0.5);
+}
+
+/* Ocultar scrollbar en el body principal de la extensión */
+body::-webkit-scrollbar {
+    width: 0;
+    display: none;
+}
+
+body {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
 
 /* ============================================
@@ -5404,31 +5415,32 @@ input::placeholder {
 .session-timer {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
     background: var(--bg-input);
-    border-radius: 6px;
-    padding: 4px 8px;
-    font-size: 11px;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 10px;
     color: var(--text-secondary);
 }
 
 .session-timer .timer-icon {
-    font-size: 12px;
+    font-size: 10px;
     opacity: 0.7;
 }
 
 .session-timer .timer-value {
     font-family: monospace;
     font-weight: 500;
-    min-width: 40px;
+    min-width: 28px;
+    font-size: 10px;
 }
 
 .session-timer .btn-lock-small {
     background: none;
     border: none;
-    font-size: 12px;
+    font-size: 10px;
     cursor: pointer;
-    padding: 2px 4px;
+    padding: 1px 3px;
     opacity: 0.7;
     transition: opacity 0.2s;
 }
@@ -9307,4 +9319,372 @@ input::placeholder {
 @keyframes highlight-pulse {
     0%, 100% { box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.75); }
     50% { box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.8); }
+}
+
+/* ============================================
+   CONNECTED SITES / dApp Connection
+   ============================================ */
+
+/* Icono de conexión dApp en header */
+.dapp-connection-icon {
+    cursor: pointer;
+    padding: 4px;
+    border-radius: var(--radius-sm);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    opacity: 0.4;
+    color: var(--text-secondary);
+}
+
+.dapp-connection-icon:hover {
+    opacity: 0.7;
+    background: var(--bg-input);
+}
+
+.dapp-connection-icon.connected {
+    opacity: 1;
+    color: #10b981;
+}
+
+/* Estado del sitio actual */
+.current-site-status {
+    margin-bottom: 16px;
+}
+
+.site-status-card {
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    background: var(--bg-input);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-color);
+    gap: 12px;
+}
+
+.site-status-card.connected {
+    background: rgba(16, 185, 129, 0.08);
+    border-color: rgba(16, 185, 129, 0.25);
+}
+
+.site-status-card.not-connected {
+    background: var(--bg-input);
+    border-color: var(--border-color);
+}
+
+.site-status-main {
+    display: flex;
+    align-items: center;
+}
+
+.site-status-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 14px;
+    font-size: 24px;
+    background: var(--bg-card);
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.site-status-icon img {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    object-fit: contain;
+}
+
+.site-status-icon .favicon-placeholder {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 6px;
+}
+
+.site-status-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.site-status-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.site-status-subtitle {
+    font-size: 12px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.site-status-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="light"] .site-status-actions {
+    border-top-color: rgba(0, 0, 0, 0.08);
+}
+
+.site-status-badge {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 500;
+}
+
+.site-status-badge.connected {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+}
+
+.site-status-badge.not-connected {
+    background: rgba(156, 163, 175, 0.15);
+    color: #9ca3af;
+}
+
+/* Botón desconectar en línea - mejorado */
+.btn-disconnect-inline {
+    background: transparent;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: #ef4444;
+    padding: 6px 12px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.btn-disconnect-inline:hover {
+    background: #ef4444;
+    border-color: #ef4444;
+    color: white;
+}
+
+/* Botón ver todos - discreto */
+.btn-view-all-sites {
+    display: block;
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 10px;
+    font-size: 12px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s ease;
+    margin-bottom: 8px;
+}
+
+.btn-view-all-sites:hover {
+    color: var(--primary);
+}
+
+/* Lista de sitios conectados - scroll vertical */
+.connected-sites-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 180px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 4px;
+}
+
+/* Scrollbar personalizado */
+.connected-sites-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.connected-sites-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.connected-sites-list::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+.connected-sites-list::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+}
+
+.connected-site-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: var(--bg-input);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    transition: all 0.2s ease;
+}
+
+.connected-site-card:hover {
+    border-color: var(--primary);
+}
+
+.site-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+}
+
+.site-favicon {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-card);
+    font-size: 18px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.site-favicon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.favicon-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 6px;
+}
+
+.site-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.site-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.current-badge {
+    font-size: 9px;
+    padding: 2px 6px;
+    background: var(--primary);
+    color: white;
+    border-radius: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.connected-site-card.current {
+    border-color: var(--primary);
+    background: rgba(102, 126, 234, 0.05);
+}
+
+.site-origin {
+    font-size: 11px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.btn-disconnect {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 8px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-disconnect:hover {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+/* Botón desconectar pequeño en lista */
+.btn-disconnect-small {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-secondary);
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.btn-disconnect-small:hover {
+    background: #ef4444;
+    border-color: #ef4444;
+    color: white;
+}
+
+.sites-count {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-left: 4px;
+}
+
+.connected-sites-actions {
+    margin-top: 16px;
+    display: flex;
+    justify-content: center;
+}
+
+.btn-danger-outline {
+    border-color: var(--error) !important;
+    color: var(--error) !important;
+}
+
+.btn-danger-outline:hover {
+    background: var(--error) !important;
+    color: white !important;
 }

@@ -794,6 +794,16 @@
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
+                        <div class="preference-row">
+                            <div class="preference-info">
+                                <span class="preference-label" data-i18n="showNotifications">Notificaciones</span>
+                                <span class="preference-desc" data-i18n="showNotificationsDesc">Mostrar mensajes emergentes</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="prefShowNotifications" checked data-click="toggleNotificationsPreference()">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
                     </div>
                 </div>
                 
@@ -928,7 +938,46 @@
         </div>
     </div>
 
-    <!-- Modal de Deploy Contrato -->
+    <!-- Modal de Sitios Conectados -->
+    <div id="connectedSitesModal" class="modal">
+        <div class="modal-content config-modal">
+            <button class="modal-close" data-click="closeModal('connectedSitesModal')">&times;</button>
+            
+            <div class="modal-header-banner">
+                <div class="modal-header-icon">🌐</div>
+                <h2 data-i18n="connectedSites">Sitios Conectados</h2>
+                <p data-i18n="connectedSitesDesc">Gestiona las conexiones de tu wallet</p>
+            </div>
+            
+            <div class="config-modal-body">
+                <!-- Estado de sitio actual -->
+                <div class="current-site-status" id="currentSiteStatus">
+                    <!-- Se llenará dinámicamente -->
+                </div>
+                
+                <!-- Historial de conexiones (acordeón) -->
+                <div class="config-section" id="allSitesSection" style="display:none;">
+                    <div class="config-section-header" data-click="toggleAllSitesView()">
+                        <div class="config-section-title">
+                            <span class="config-section-icon">📋</span>
+                            <span data-i18n="connectionHistory">Historial de conexiones</span>
+                            <span class="sites-count" id="sitesCount">(0)</span>
+                        </div>
+                        <span class="config-section-arrow">›</span>
+                    </div>
+                    <div class="config-section-content" id="allSitesContent">
+                        <div id="connectedSitesList" class="connected-sites-list">
+                            <!-- Lista de sitios conectados -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Elementos ocultos para compatibilidad -->
+                <button id="viewAllSitesBtn" style="display:none;"></button>
+                <button id="disconnectAllBtn" style="display:none;"></button>
+            </div>
+        </div>
+    </div>
     <div id="deployContractModal" class="modal">
         <div class="modal-content deploy-modal">
             <button class="modal-close" data-click="closeModal('deployContractModal')">&times;</button>
@@ -1317,6 +1366,10 @@
                 </span>
             </div>
             <div class="header-right">
+                <!-- Icono de conexión dApp -->
+                <span class="dapp-connection-icon" id="dappConnectionBtn" data-click="showConnectedSites()" title="Sitios conectados">
+                    <span id="dappIcon">🌐</span>
+                </span>
                 <!-- Contador de sesión -->
                 <div class="session-timer" id="sessionTimer">
                     <span class="timer-icon">⏱</span>
@@ -1439,7 +1492,7 @@
         <!-- Footer -->
         <footer class="footer">
             <p>Wallet creada por <a href="https://0xaddress.com" target="_blank">0xAddress.com</a></p>
-            <span class="version">BETA 0.0.81</span>
+            <span class="version">BETA 0.0.113</span>
         </footer>
     </div>
 

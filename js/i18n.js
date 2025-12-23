@@ -1405,14 +1405,9 @@ const TRANSLATIONS = {
 // Idioma actual
 let currentLanguage = 'es';
 
-// Detectar idioma del navegador
+// Detectar idioma del navegador (ahora solo retorna español por defecto)
 function detectBrowserLanguage() {
-    const browserLang = navigator.language || navigator.userLanguage;
-    if (browserLang) {
-        if (browserLang.startsWith('en')) return 'en';
-        if (browserLang.startsWith('pt')) return 'pt';
-        if (browserLang.startsWith('zh')) return 'zh';
-    }
+    // Siempre español por defecto
     return 'es';
 }
 
@@ -1423,7 +1418,8 @@ function initLanguageFromStorage(callback) {
             if (result['0xaddress_language']) {
                 currentLanguage = result['0xaddress_language'];
             } else {
-                currentLanguage = detectBrowserLanguage();
+                // Si no hay idioma guardado, usar español
+                currentLanguage = 'es';
             }
             if (callback) callback();
         });
@@ -1432,7 +1428,8 @@ function initLanguageFromStorage(callback) {
         if (saved) {
             currentLanguage = saved;
         } else {
-            currentLanguage = detectBrowserLanguage();
+            // Si no hay idioma guardado, usar español
+            currentLanguage = 'es';
         }
         if (callback) callback();
     }
