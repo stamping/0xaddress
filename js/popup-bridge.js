@@ -202,7 +202,7 @@
     // ========================================
     // Modal de Aprobación
     // ========================================
-    function showApprovalModal(request) {
+    async function showApprovalModal(request) {
         console.log('📋 Showing modal for:', request.method);
         
         removeModal();
@@ -221,6 +221,16 @@
         
         // Ocultar contenido principal para evitar que se vea detrás
         hideMainContent();
+        
+        // Para transacciones, obtener el balance actualizado
+        if (request.method === 'eth_sendTransaction' && wallet?.address) {
+            try {
+                const balanceWei = await wallet.provider.getBalance(wallet.address);
+                wallet.nativeBalance = ethers.formatEther(balanceWei);
+            } catch (e) {
+                console.warn('Could not fetch balance:', e);
+            }
+        }
 
         // Detectar tema
         const isDark = document.body.classList.contains('dark-mode') || 
@@ -892,12 +902,50 @@
 
             case 'eth_sendTransaction': {
                 const tx = request.params[0];
-                const txResponse = await signer.sendTransaction({
-                    to: tx.to,
+                
+                // Construir objeto de transacción
+                const txParams = {
+                    to: tx.to || undefined, // undefined para deploy de contrato
                     value: tx.value || '0x0',
-                    data: tx.data || '0x',
-                    gasLimit: tx.gas || tx.gasLimit
-                });
+                    data: tx.data || '0x'
+                };
+                
+                // Gas limit
+                if (tx.gas) txParams.gasLimit = tx.gas;
+                else if (tx.gasLimit) txParams.gasLimit = tx.gasLimit;
+                
+                // Gas price (legacy)
+                if (tx.gasPrice) txParams.gasPrice = tx.gasPrice;
+                
+                // EIP-1559 gas
+                if (tx.maxFeePerGas) txParams.maxFeePerGas = tx.maxFeePerGas;
+                if (tx.maxPriorityFeePerGas) txParams.maxPriorityFeePerGas = tx.maxPriorityFeePerGas;
+                
+                // Nonce (si se especifica)
+                if (tx.nonce !== undefined) txParams.nonce = parseInt(tx.nonce, 16);
+                
+                const txResponse = await signer.sendTransaction(txParams);
+                
+                if (!txResponse.hash) {
+                    throw new Error('No transaction hash returned');
+                }
+                
+                // Esperar a que la transacción sea visible en el nodo (polling)
+                const maxAttempts = 10;
+                const delayMs = 500;
+                
+                for (let i = 0; i < maxAttempts; i++) {
+                    try {
+                        const txData = await wallet.provider.getTransaction(txResponse.hash);
+                        if (txData) {
+                            break;
+                        }
+                    } catch (e) {
+                        // Ignorar errores de polling
+                    }
+                    await new Promise(r => setTimeout(r, delayMs));
+                }
+                
                 return txResponse.hash;
             }
 
