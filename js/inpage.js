@@ -70,7 +70,7 @@
     // ========================================
     get isOxAddress() { return true; }
     get is0xAddress() { return true; }
-    get isMetaMask() { return false; } // No pretendemos ser MetaMask
+    get isMetaMask() { return true; } // Para compatibilidad con dApps que verifican esto
     get chainId() { return this._chainId; }
     get selectedAddress() { return this._selectedAddress; }
     get networkVersion() { 
@@ -84,7 +84,6 @@
       // Deduplicación para eth_requestAccounts
       if (method === 'eth_requestAccounts') {
         if (this._pendingAccountsRequest) {
-          console.log('⏳ eth_requestAccounts already pending, waiting...');
           return this._pendingAccountsRequest;
         }
         
@@ -139,9 +138,20 @@
       
       // Formato callback: send(payload, callback)
       if (typeof paramsOrCallback === 'function') {
+        const id = methodOrPayload.id || ++this._requestId;
         this.request(methodOrPayload)
-          .then(result => paramsOrCallback(null, { result }))
-          .catch(error => paramsOrCallback(error, null));
+          .then(result => paramsOrCallback(null, { id, jsonrpc: '2.0', result }))
+          .catch(error => {
+            // Formato JSON-RPC para errores
+            paramsOrCallback(null, { 
+              id, 
+              jsonrpc: '2.0', 
+              error: { 
+                code: error.code || -32603, 
+                message: error.message || 'Internal error' 
+              } 
+            });
+          });
         return;
       }
       
@@ -150,9 +160,22 @@
     }
 
     sendAsync(payload, callback) {
+      const id = payload.id || ++this._requestId;
+      
       this.request(payload)
-        .then(result => callback(null, { id: payload.id, jsonrpc: '2.0', result }))
-        .catch(error => callback(error, null));
+        .then(result => {
+          callback(null, { id, jsonrpc: '2.0', result });
+        })
+        .catch(error => {
+          callback(null, { 
+            id, 
+            jsonrpc: '2.0', 
+            error: { 
+              code: error.code || -32603, 
+              message: error.message || 'Internal error' 
+            } 
+          });
+        });
     }
 
     // ========================================
